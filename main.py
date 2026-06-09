@@ -622,40 +622,4 @@ async def registrar_palpite_admin(payload: PalpiteCreate) -> dict[str, Any]:
     }
 
 
-@app.post("/api/admin/importar-copa")
-async def importar_copa_csv_padrao() -> dict[str, Any]:
-    """
-    Importa jogos da Copa a partir do CSV padrão (data/copa_2026.csv).
-    Edite o CSV e rode de novo para atualizar placares e status.
-    """
-    try:
-        return importar_partidas_csv_arquivo(PARTIDAS_CSV_PADRAO)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
-@app.post("/api/admin/importar-copa/upload")
-async def importar_copa_csv_upload(
-    arquivo: UploadFile = File(...),
-) -> dict[str, Any]:
-    """Importa jogos da Copa a partir de um arquivo CSV enviado pelo navegador."""
-    if not arquivo.filename or not arquivo.filename.lower().endswith(".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Envie um arquivo .csv válido",
-        )
-
-    conteudo = (await arquivo.read()).decode("utf-8-sig")
-    try:
-        return importar_partidas_csv(conteudo, arquivo.filename)
-    except (UnicodeDecodeError, ValueError) as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
-@app.post("/api/admin/sincronizar-copa")
-async def sincronizar_copa() -> dict[str, Any]:
-    """Alias para importar o CSV padrão da Copa."""
-    return await importar_copa_csv_padrao()
-
-
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

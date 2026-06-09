@@ -522,10 +522,6 @@
         <span class="sync-hint" id="syncHint">
           Jogos da Copa via CSV — edite <strong>data/copa_2026.csv</strong> e reimporte para atualizar placares.
         </span>
-        <button class="btn btn-primary" id="btnImportarCsv">Importar CSV padrão</button>
-        <button class="btn btn-ghost" id="btnEnviarCsv">Enviar CSV</button>
-        <input type="file" id="inputCsv" accept=".csv" hidden />
-        <button class="btn btn-ghost" id="btnAtualizarJogos">Atualizar jogos</button>
       </div>
       <div class="matches" id="matchesList">
         <div class="empty">Carregando jogos...</div>
@@ -928,61 +924,6 @@
       document.querySelector('[data-tab="usuario"]').click();
     });
 
-    async function importarCsvPadrao() {
-      const btn = $("#btnImportarCsv");
-      const hint = $("#syncHint");
-      btn.disabled = true;
-      btn.textContent = "Importando...";
-
-      try {
-        const res = await api("/api/admin/importar-copa", { method: "POST" });
-        showToast(`${res.total} jogos importados de ${res.arquivo}!`);
-        hint.textContent = `Última importação: ${res.arquivo} — ${res.total} jogos no bolão.`;
-        await carregarPartidas();
-      } catch (err) {
-        showToast(err.message, "error");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Importar CSV padrão";
-      }
-    }
-
-    async function importarCsvArquivo(file) {
-      const hint = $("#syncHint");
-      const formData = new FormData();
-      formData.append("arquivo", file);
-
-      const res = await fetch("/api/admin/importar-copa/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const detail = data.detail;
-        throw new Error(typeof detail === "string" ? detail : "Falha ao enviar CSV");
-      }
-
-      showToast(`${data.total} jogos importados de ${data.arquivo}!`);
-      hint.textContent = `Última importação: ${data.arquivo} — ${data.total} jogos no bolão.`;
-      await carregarPartidas();
-    }
-
-    $("#btnImportarCsv").addEventListener("click", importarCsvPadrao);
-    $("#btnEnviarCsv").addEventListener("click", () => $("#inputCsv").click());
-    $("#inputCsv").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        await importarCsvArquivo(file);
-      } catch (err) {
-        showToast(err.message, "error");
-      } finally {
-        e.target.value = "";
-      }
-    });
-    $("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
-    $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExclusivos);
-    $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
 
     // Inicialização assíncrona sequencial
     async function init() {
