@@ -1,26 +1,26 @@
-# Bolão da Copa do Mundo 🏆
+# Bolão da Copa do Mundo 
 
 Bem-vindo ao **Bolão WC**! Um aplicativo web interativo para criar e gerenciar bolões da Copa do Mundo.
 
-## 📋 Descrição
+##  Descrição
 
 Este projeto é um bolão para a Copa do Mundo, permitindo que usuários façam previsões sobre os resultados das partidas e acompanhem suas pontuações em tempo real.
 
-## 🛠️ Tecnologias Utilizadas
+##  Tecnologias Utilizadas
 
 - **HTML** - 50.4% (Interface do usuário)
 - **Python** - 39.4% (Backend e lógica da aplicação)
 - **PL/pgSQL** - 10.2% (Banco de dados)
 
-## 🚀 Funcionalidades
+##  Funcionalidades
 
-- ✅ Interface web responsiva
-- ✅ Sistema de previsões de resultados
-- ✅ Cálculo automático de pontuações
-- ✅ Ranking de participantes
-- ✅ Banco de dados PostgreSQL integrado
+-  Interface web responsiva
+-  Sistema de previsões de resultados
+-  Cálculo automático de pontuações
+-  Ranking de participantes
+-  Banco de dados PostgreSQL integrado
 
-## 📁 Estrutura do Projeto
+##  Estrutura do Projeto
 
 ```
 bolao-wc/
@@ -32,7 +32,7 @@ bolao-wc/
 └── README.md            # Este arquivo
 ```
 
-## 💻 Instalação
+##  Instalação
 
 1. Clone o repositório:
 ```bash
@@ -55,28 +55,28 @@ psql -U seu_usuario -d seu_banco < init.sql
 python main.py
 ```
 
-## 📖 Como Usar
+##  Como Usar
 
 1. Acesse a aplicação no seu navegador
 2. Faça login ou crie uma conta
 3. Faça suas previsões para os jogos
 4. Acompanhe seu desempenho no ranking
 
-## 🤝 Contribuindo
+##  Contribuindo
 
 Contribuições são bem-vindas! Sinta-se à vontade para:
 - Reportar bugs
 - Sugerir melhorias
 - Fazer um fork e criar um pull request
 
-## 📝 Licença
+##  Licença
 
 Este projeto é de código aberto e está disponível para uso pessoal e educacional.
 
-## 📞 Contato
+##  Contato
 
 Para dúvidas ou sugestões, entre em contato através das issues do repositório.
 
 ---
 
-**Boa sorte em seu bolão! ⚽**
+**Boa sorte em seu bolão! **
