@@ -475,6 +475,20 @@ async def registrar_palpite(payload: PalpiteCreate) -> dict[str, Any]:
         "palpite_gols_fora": palpite["palpite_gols_fora"],
     }
 
+@app.get("/api/palpites/usuario/{usuario_id}", response_model=list[PalpiteResponse])
+async def listar_palpites_usuario(usuario_id: UUID) -> list[dict[str, Any]]:
+    """Retorna todos os palpites que um usuário específico já realizou."""
+    db = get_supabase()
+    
+    resultado = (
+        db.table("palpites")
+        .select("id, usuario_id, partida_id, palpite_gols_casa, palpite_gols_fora")
+        .eq("usuario_id", str(usuario_id))
+        .execute()
+    )
+    
+    return resultado.data or []
+
 
 @app.get("/api/ranking", response_model=list[RankingEntry])
 async def obter_ranking() -> list[dict[str, Any]]:

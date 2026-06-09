@@ -22,6 +22,10 @@
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
       --glow-green: 0 0 20px rgba(57, 255, 20, 0.25);
       --glow-purple: 0 0 24px rgba(157, 78, 223, 0.2);
+      
+      /* Nova cor para o botão de palpite já salvo */
+      --btn-saved: #0e3a1a;
+      --text-saved: #5cf576;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -109,6 +113,7 @@
       margin-bottom: 1.5rem;
       border-bottom: 1px solid var(--border);
       padding-bottom: 0;
+      overflow-x: auto;
     }
 
     .tab {
@@ -121,6 +126,7 @@
       cursor: pointer;
       border-bottom: 2px solid transparent;
       margin-bottom: -1px;
+      white-space: nowrap;
       transition: color 0.2s, border-color 0.2s;
     }
 
@@ -141,10 +147,6 @@
       border-radius: var(--radius);
       padding: 1.5rem;
       box-shadow: var(--shadow);
-    }
-
-    .card card-section {
-      margin-bottom: 1.5rem;
     }
 
     .card h2 {
@@ -218,6 +220,17 @@
     .btn-primary:hover {
       background: var(--accent-dim);
       box-shadow: 0 0 28px rgba(173, 255, 47, 0.4);
+    }
+
+    /* Nova classe CSS para o botão com palpite já realizado */
+    .btn-primary.palpite-salvo {
+      background: var(--btn-saved);
+      color: var(--text-saved);
+      border: 1px solid rgba(92, 245, 118, 0.3);
+      box-shadow: none;
+    }
+    .btn-primary.palpite-salvo:hover {
+      background: #145225;
     }
 
     .btn-primary:disabled {
@@ -468,7 +481,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="usuario">Participante</button>
       <button class="tab" data-tab="jogos">Jogos da Copa</button>
-      <button class="tab" data-tab="ranking">Classificação</button>
+      <button class="tab" data-tab="meus-palpites">Meus Palpites</button> <button class="tab" data-tab="ranking">Classificação</button>
     </nav>
 
     <section class="panel active" id="panel-usuario">
@@ -519,6 +532,15 @@
       </div>
     </section>
 
+    <section class="panel" id="panel-meus-palpites">
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btnAtualizarMeusPalpites">Atualizar meus palpites</button>
+      </div>
+      <div class="matches" id="myMatchesList">
+        <div class="empty">Selecione ou cadastre um participante para ver os palpites salvos.</div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-ranking">
       <div class="toolbar">
         <button class="btn btn-ghost" id="btnAtualizarRanking">Atualizar ranking</button>
@@ -548,6 +570,7 @@
     const STORAGE_KEY = "bolaofort_usuario";
 
     let usuarioAtual = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    let palpitesDoUsuario = []; // Armazena em memória os palpites do usuário logado
 
     const $ = (sel) => document.querySelector(sel);
     const toast = $("#toast");
@@ -558,7 +581,20 @@
       setTimeout(() => toast.classList.remove("show"), 3500);
     }
 
-    function atualizarBarraUsuario() {
+    async function carregarPalpitesDoUsuario() {
+      if (!usuarioAtual) {
+        palpitesDoUsuario = [];
+        return;
+      }
+      try {
+        palpitesDoUsuario = await api(`/api/palpites/usuario/${usuarioAtual.id}`);
+      } catch (err) {
+        console.error("Erro ao carregar palpites do usuário:", err);
+        palpitesDoUsuario = [];
+      }
+    }
+
+    async function atualizarBarraUsuario() {
       const logged = $("#userLogged");
       const guest = $("#userGuest");
       const logout = $("#btnLogout");
@@ -568,17 +604,19 @@
         guest.style.display = "none";
         logout.style.display = "block";
         $("#userName").textContent = usuarioAtual.nome;
+        await carregarPalpitesDoUsuario();
       } else {
         logged.style.display = "none";
         guest.style.display = "block";
         logout.style.display = "none";
+        palpitesDoUsuario = [];
       }
     }
 
-    function salvarUsuario(usuario) {
+    async function salvarUsuario(usuario) {
       usuarioAtual = usuario;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(usuario));
-      atualizarBarraUsuario();
+      await atualizarBarraUsuario();
     }
 
     function exigirLogin() {
@@ -649,10 +687,21 @@
           return;
         }
 
+        // Garante que a lista de palpites está em sincronia
+        await carregarPalpitesDoUsuario();
+
         lista.innerHTML = partidas.map((p) => {
           const st = statusPartida(p);
           const disabled = !st.aberto ? "disabled" : "";
           const btnDisabled = !st.aberto || !usuarioAtual ? "disabled" : "";
+
+          // Verifica se o usuário atual já possui um palpite para essa partida específica
+          const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
+          const golsCasaVal = palpiteSalvo ? palpiteSalvo.palpite_gols_casa : 0;
+          const golsForaVal = palpiteSalvo ? palpiteSalvo.palpite_gols_fora : 0;
+          
+          const textoBotao = palpiteSalvo ? "Palpite Salvo ✓" : "Salvar Palpite";
+          const classeBotao = palpiteSalvo ? "btn btn-primary palpite-salvo" : "btn btn-primary";
 
           if (!st.aberto && p.status === "FINISHED") {
             return `
@@ -664,7 +713,17 @@
                   </div>
                   <span class="status-tag ${st.cls}">${st.label}</span>
                 </div>
-                <div class="final-score">${p.gols_casa} × ${p.gols_fora}</div>
+                <div style="display:flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap: 1rem;">
+                  <div>
+                    <span style="font-size:0.8rem; color:var(--text-muted); display:block;">Resultado Oficial:</span>
+                    <div class="final-score">${p.gols_casa} × ${p.gols_fora}</div>
+                  </div>
+                  ${palpiteSalvo ? `
+                  <div>
+                    <span style="font-size:0.8rem; color:var(--text-muted); display:block;">Seu Palpite:</span>
+                    <div style="font-size:1.1rem; font-weight:700; color:var(--text-muted);">${golsCasaVal} × ${golsForaVal}</div>
+                  </div>` : ''}
+                </div>
               </article>`;
           }
 
@@ -679,11 +738,11 @@
               </div>
               <div class="palpite-row">
                 <div class="score-inputs">
-                  <input type="number" min="0" max="99" value="0" class="gols-casa" ${disabled} />
+                  <input type="number" min="0" max="99" value="${golsCasaVal}" class="gols-casa" ${disabled} />
                   <span class="score-sep">×</span>
-                  <input type="number" min="0" max="99" value="0" class="gols-fora" ${disabled} />
+                  <input type="number" min="0" max="99" value="${golsForaVal}" class="gols-fora" ${disabled} />
                 </div>
-                <button class="btn btn-primary btn-salvar" ${btnDisabled}>Salvar Palpite</button>
+                <button class="${classeBotao} btn-salvar" ${btnDisabled}>${textoBotao}</button>
               </div>
             </article>`;
         }).join("");
@@ -707,6 +766,13 @@
                 }),
               });
               showToast("Palpite salvo com sucesso!");
+              
+              // Muda o estado do botão visualmente de imediato
+              btn.textContent = "Palpite Salvo ✓";
+              btn.classList.add("palpite-salvo");
+              
+              // Atualiza o cache local
+              await carregarPalpitesDoUsuario();
             } catch (err) {
               showToast(err.message, "error");
             }
@@ -714,6 +780,59 @@
         });
       } catch (err) {
         lista.innerHTML = `<div class="empty">Erro ao carregar jogos: ${err.message}</div>`;
+      }
+    }
+
+    // Função para renderizar a nova aba "Meus Palpites"
+    async function carregarMeusPalpitesExclusivos() {
+      const lista = $("#myMatchesList");
+      if (!usuarioAtual) {
+        lista.innerHTML = '<div class="empty">Selecione ou cadastre um participante para ver os palpites salvos.</div>';
+        return;
+      }
+
+      try {
+        const partidas = await api("/api/partidas");
+        await carregarPalpitesDoUsuario();
+
+        if (!palpitesDoUsuario.length) {
+          lista.innerHTML = '<div class="empty">Você ainda não realizou nenhum palpite. Vá na aba <strong>Jogos da Copa</strong> e faça as suas apostas!</div>';
+          return;
+        }
+
+        // Filtra apenas as partidas onde o usuário realizou um palpite
+        const partidasPalpitadas = partidas.filter(p => palpitesDoUsuario.some(pt => pt.partida_id === p.id));
+
+        lista.innerHTML = partidasPalpitadas.map((p) => {
+          const st = statusPartida(p);
+          const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
+          
+          return `
+            <article class="match-card">
+              <div class="match-header">
+                <div>
+                  <div class="match-teams">${p.time_casa} <span style="color:var(--text-muted)">vs</span> ${p.time_fora}</div>
+                  <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
+                </div>
+                <span class="status-tag ${st.cls}">${st.label}</span>
+              </div>
+              <div style="display:flex; gap:2rem; align-items:center; flex-wrap:wrap;">
+                <div>
+                  <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-weight:600; text-transform:uppercase;">Seu Palpite</span>
+                  <div style="font-size:1.4rem; font-weight:800; color:var(--accent); text-shadow:var(--glow-green);">${palpiteSalvo.palpite_gols_casa} × ${palpiteSalvo.palpite_gols_fora}</div>
+                </div>
+                ${p.status === "FINISHED" ? `
+                <div>
+                  <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-weight:600; text-transform:uppercase;">Resultado Oficial</span>
+                  <div style="font-size:1.4rem; font-weight:800; color:var(--purple); text-shadow:var(--glow-purple);">${p.gols_casa} × ${p.gols_fora}</div>
+                </div>` : ''}
+              </div>
+            </article>
+          `;
+        }).join("");
+
+      } catch (err) {
+        lista.innerHTML = `<div class="empty">Erro ao carregar seus palpites: ${err.message}</div>`;
       }
     }
 
@@ -740,7 +859,7 @@
       }
     }
 
-    // Tabs
+    // Tabs Control
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -749,6 +868,7 @@
         $("#panel-" + tab.dataset.tab).classList.add("active");
 
         if (tab.dataset.tab === "jogos") carregarPartidas();
+        if (tab.dataset.tab === "meus-palpites") carregarMeusPalpitesExclusivos();
         if (tab.dataset.tab === "ranking") carregarRanking();
       });
     });
@@ -768,7 +888,7 @@
           method: "POST",
           body: JSON.stringify({ nome, senha }),
         });
-        salvarUsuario(usuario);
+        await salvarUsuario(usuario);
         $("#inputSenhaLogin").value = "";
         showToast(`Bem-vindo, ${usuario.nome}!`);
       } catch (err) {
@@ -789,7 +909,7 @@
           method: "POST",
           body: JSON.stringify({ nome, senha }),
         });
-        salvarUsuario(usuario);
+        await salvarUsuario(usuario);
         $("#inputNome").value = "";
         $("#inputSenhaCadastro").value = "";
         await carregarUsuarios();
@@ -799,11 +919,13 @@
       }
     });
 
-    $("#btnLogout").addEventListener("click", () => {
+    $("#btnLogout").addEventListener("click", async () => {
       usuarioAtual = null;
       localStorage.removeItem(STORAGE_KEY);
-      atualizarBarraUsuario();
+      await atualizarBarraUsuario();
       showToast("Você saiu do bolão.");
+      // Força o retorno para a aba do usuário
+      document.querySelector('[data-tab="usuario"]').click();
     });
 
     async function importarCsvPadrao() {
@@ -859,11 +981,15 @@
       }
     });
     $("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
+    $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExclusivos);
     $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
 
-    // Init
-    atualizarBarraUsuario();
-    carregarUsuarios();
+    // Inicialização assíncrona sequencial
+    async function init() {
+      await atualizarBarraUsuario();
+      await carregarUsuarios();
+    }
+    init();
   </script>
 </body>
 </html>
