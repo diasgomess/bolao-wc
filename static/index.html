@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BolãoFort — Copa do Mundo</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --bg-card: #161b22;
+      --bg-elevated: #1c2129;
+      --border: #30363d;
+      --text: #ffffff;
+      --text-muted: #8b949e;
+      --accent: #39ff14;
+      --accent-dim: #adff2f;
+      --purple: #9d4edf;
+      --purple-dim: #8a2be2;
+      --danger: #ff5252;
+      --warning: #c9a227;
+      --radius: 12px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+      --glow-green: 0 0 20px rgba(57, 255, 20, 0.25);
+      --glow-purple: 0 0 24px rgba(157, 78, 223, 0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 70% 45% at 15% -10%, rgba(157, 78, 223, 0.14), transparent),
+        radial-gradient(ellipse 60% 40% at 85% -5%, rgba(57, 255, 20, 0.08), transparent),
+        linear-gradient(180deg, #0d1117 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1.5rem 0;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--purple), #c77dff 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 18px rgba(157, 78, 223, 0.35));
+    }
+
+    header p {
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .user-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow);
+    }
+
+    .user-bar .logged {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .user-bar .logged strong { color: var(--accent); text-shadow: var(--glow-green); }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(57, 255, 20, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(57, 255, 20, 0.35);
+      box-shadow: var(--glow-green);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .tab:hover { color: var(--purple); }
+
+    .tab.active {
+      color: var(--purple);
+      border-bottom-color: var(--purple);
+      text-shadow: var(--glow-purple);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card card-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--purple);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .field {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(157, 78, 223, 0.2);
+    }
+
+    input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn {
+      padding: 0.65rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0b0e14;
+      box-shadow: var(--glow-green);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dim);
+      box-shadow: 0 0 28px rgba(173, 255, 47, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      color: var(--purple);
+      border-color: var(--purple-dim);
+      box-shadow: var(--glow-purple);
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+
+    .matches { display: flex; flex-direction: column; gap: 1rem; }
+
+    .match-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: var(--shadow);
+    }
+
+    .match-card:hover {
+      border-color: rgba(157, 78, 223, 0.45);
+      box-shadow: var(--shadow), var(--glow-purple);
+    }
+
+    .match-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .match-teams {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .match-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .status-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .status-open {
+      background: rgba(57, 255, 20, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(57, 255, 20, 0.35);
+      box-shadow: var(--glow-green);
+    }
+
+    .status-closed {
+      background: rgba(201, 162, 39, 0.12);
+      color: var(--warning);
+      border: 1px solid rgba(201, 162, 39, 0.3);
+    }
+
+    .status-finished {
+      background: rgba(139, 148, 158, 0.12);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .palpite-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .score-inputs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .score-inputs input {
+      width: 56px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .score-sep {
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .final-score {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--purple);
+      text-shadow: var(--glow-purple);
+    }
+
+    .ranking-table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--purple);
+      font-weight: 700;
+      background: rgba(157, 78, 223, 0.06);
+    }
+
+    tr:hover td { background: rgba(157, 78, 223, 0.04); }
+
+    tr.leader td:first-child {
+      color: var(--accent);
+      font-weight: 800;
+      text-shadow: var(--glow-green);
+    }
+
+    tr.leader td:nth-child(2) {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pts {
+      font-weight: 800;
+      color: var(--accent);
+      font-size: 1.1rem;
+      text-shadow: var(--glow-green);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.85rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      z-index: 100;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s, opacity 0.3s;
+      max-width: 360px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: #121a14;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      box-shadow: var(--glow-green);
+    }
+
+    .toast.error {
+      background: #1a1214;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .empty {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-muted);
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .sync-hint {
+      flex: 1;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      min-width: 200px;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.5rem; }
+      .match-teams { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚽ BolãoFort</h1>
+      <p>Palpites da Copa do Mundo entre amigos</p>
+    </header>
+
+    <div class="user-bar" id="userBar">
+      <div class="logged" id="userLogged" style="display:none">
+        <span class="badge">Online</span>
+        <span>Olá, <strong id="userName"></strong></span>
+      </div>
+      <div id="userGuest" style="color:var(--text-muted);font-size:0.9rem">
+        Nenhum participante selecionado
+      </div>
+      <button class="btn btn-ghost" id="btnLogout" style="display:none">Sair</button>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="usuario">Participante</button>
+      <button class="tab" data-tab="jogos">Jogos da Copa</button>
+      <button class="tab" data-tab="ranking">Classificação</button>
+    </nav>
+
+    <section class="panel active" id="panel-usuario">
+      <div class="card">
+        <h2>Entrar no bolão</h2>
+        <div class="form-row">
+          <div class="field">
+            <label for="selectUsuario">Participante cadastrado</label>
+            <select id="selectUsuario">
+              <option value="">— Selecione —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="inputSenhaLogin">Sua Senha</label>
+            <input type="password" id="inputSenhaLogin" placeholder="Digite sua senha" />
+          </div>
+          <button class="btn btn-primary" id="btnSelecionar">Entrar</button>
+        </div>
+        
+        <p class="hint">ou cadastre um novo participante:</p>
+        
+        <div class="form-row">
+          <div class="field">
+            <label for="inputNome">Seu nome</label>
+            <input type="text" id="inputNome" placeholder="Ex: Matheus" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="inputSenhaCadastro">Escolha uma Senha</label>
+            <input type="password" id="inputSenhaCadastro" placeholder="Mínimo 4 caracteres" />
+          </div>
+          <button class="btn btn-primary" id="btnCadastrar">Cadastrar e entrar</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-jogos">
+      <div class="toolbar">
+        <span class="sync-hint" id="syncHint">
+          Jogos da Copa via CSV — edite <strong>data/copa_2026.csv</strong> e reimporte para atualizar placares.
+        </span>
+        <button class="btn btn-primary" id="btnImportarCsv">Importar CSV padrão</button>
+        <button class="btn btn-ghost" id="btnEnviarCsv">Enviar CSV</button>
+        <input type="file" id="inputCsv" accept=".csv" hidden />
+        <button class="btn btn-ghost" id="btnAtualizarJogos">Atualizar jogos</button>
+      </div>
+      <div class="matches" id="matchesList">
+        <div class="empty">Carregando jogos...</div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-ranking">
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btnAtualizarRanking">Atualizar ranking</button>
+      </div>
+      <div class="card ranking-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Participante</th>
+              <th>Pontos</th>
+              <th>Placares</th>
+              <th>Vencedor</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody">
+            <tr><td colspan="5" class="empty">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "bolaofort_usuario";
+
+    let usuarioAtual = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+
+    const $ = (sel) => document.querySelector(sel);
+    const toast = $("#toast");
+
+    function showToast(msg, type = "success") {
+      toast.textContent = msg;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+
+    function atualizarBarraUsuario() {
+      const logged = $("#userLogged");
+      const guest = $("#userGuest");
+      const logout = $("#btnLogout");
+
+      if (usuarioAtual) {
+        logged.style.display = "flex";
+        guest.style.display = "none";
+        logout.style.display = "block";
+        $("#userName").textContent = usuarioAtual.nome;
+      } else {
+        logged.style.display = "none";
+        guest.style.display = "block";
+        logout.style.display = "none";
+      }
+    }
+
+    function salvarUsuario(usuario) {
+      usuarioAtual = usuario;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(usuario));
+      atualizarBarraUsuario();
+    }
+
+    function exigirLogin() {
+      if (!usuarioAtual) {
+        showToast("Selecione ou cadastre um participante primeiro.", "error");
+        document.querySelector('[data-tab="usuario"]').click();
+        return false;
+      }
+      return true;
+    }
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json", ...options.headers },
+        ...options,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.detail;
+        const msg = typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((d) => d.msg).join(", ")
+            : "Erro na requisição";
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function carregarUsuarios() {
+      const usuarios = await api("/api/usuarios");
+      const select = $("#selectUsuario");
+      select.innerHTML = '<option value="">— Selecione —</option>';
+      usuarios.forEach((u) => {
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        opt.textContent = u.nome;
+        select.appendChild(opt);
+      });
+      if (usuarioAtual) {
+        select.value = usuarioAtual.id;
+      }
+    }
+
+    function formatarData(iso) {
+      const d = new Date(iso);
+      return d.toLocaleString("pt-BR", {
+        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+      });
+    }
+
+    function statusPartida(p) {
+      if (p.status === "FINISHED") {
+        return { label: `Finalizado — ${p.gols_casa} × ${p.gols_fora}`, cls: "status-finished", aberto: false };
+      }
+      if (p.palpite_expirado) {
+        return { label: "Inscrições Encerradas", cls: "status-closed", aberto: false };
+      }
+      return { label: "Palpites Abertos", cls: "status-open", aberto: true };
+    }
+
+    async function carregarPartidas() {
+      const lista = $("#matchesList");
+      try {
+        const partidas = await api("/api/partidas");
+        if (!partidas.length) {
+          lista.innerHTML = '<div class="empty">Nenhum jogo cadastrado. Clique em <strong>Importar CSV padrão</strong>.</div>';
+          return;
+        }
+
+        lista.innerHTML = partidas.map((p) => {
+          const st = statusPartida(p);
+          const disabled = !st.aberto ? "disabled" : "";
+          const btnDisabled = !st.aberto || !usuarioAtual ? "disabled" : "";
+
+          if (!st.aberto && p.status === "FINISHED") {
+            return `
+              <article class="match-card">
+                <div class="match-header">
+                  <div>
+                    <div class="match-teams">${p.time_casa} <span style="color:var(--text-muted)">vs</span> ${p.time_fora}</div>
+                    <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
+                  </div>
+                  <span class="status-tag ${st.cls}">${st.label}</span>
+                </div>
+                <div class="final-score">${p.gols_casa} × ${p.gols_fora}</div>
+              </article>`;
+          }
+
+          return `
+            <article class="match-card" data-id="${p.id}">
+              <div class="match-header">
+                <div>
+                  <div class="match-teams">${p.time_casa} <span style="color:var(--text-muted)">vs</span> ${p.time_fora}</div>
+                  <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
+                </div>
+                <span class="status-tag ${st.cls}">${st.label}</span>
+              </div>
+              <div class="palpite-row">
+                <div class="score-inputs">
+                  <input type="number" min="0" max="99" value="0" class="gols-casa" ${disabled} />
+                  <span class="score-sep">×</span>
+                  <input type="number" min="0" max="99" value="0" class="gols-fora" ${disabled} />
+                </div>
+                <button class="btn btn-primary btn-salvar" ${btnDisabled}>Salvar Palpite</button>
+              </div>
+            </article>`;
+        }).join("");
+
+        lista.querySelectorAll(".btn-salvar").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            if (!exigirLogin()) return;
+            const card = btn.closest(".match-card");
+            const partidaId = Number(card.dataset.id);
+            const golsCasa = Number(card.querySelector(".gols-casa").value);
+            const golsFora = Number(card.querySelector(".gols-fora").value);
+
+            try {
+              await api("/api/palpites", {
+                method: "POST",
+                body: JSON.stringify({
+                  usuario_id: usuarioAtual.id,
+                  partida_id: partidaId,
+                  gols_casa: golsCasa,
+                  gols_fora: golsFora,
+                }),
+              });
+              showToast("Palpite salvo com sucesso!");
+            } catch (err) {
+              showToast(err.message, "error");
+            }
+          });
+        });
+      } catch (err) {
+        lista.innerHTML = `<div class="empty">Erro ao carregar jogos: ${err.message}</div>`;
+      }
+    }
+
+    async function carregarRanking() {
+      const tbody = $("#rankingBody");
+      try {
+        const ranking = await api("/api/ranking");
+        if (!ranking.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum participante ainda.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = ranking.map((r, i) => `
+          <tr class="${i === 0 && r.pontos_totais > 0 ? "leader" : ""}">
+            <td>${i + 1}º</td>
+            <td>${r.nome}</td>
+            <td class="pts">${r.pontos_totais}</td>
+            <td>${r.acertos_cheios}</td>
+            <td>${r.acertos_vencedor}</td>
+          </tr>
+        `).join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">Erro: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Tabs
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        $("#panel-" + tab.dataset.tab).classList.add("active");
+
+        if (tab.dataset.tab === "jogos") carregarPartidas();
+        if (tab.dataset.tab === "ranking") carregarRanking();
+      });
+    });
+
+    // Login do Usuário
+    $("#btnSelecionar").addEventListener("click", async () => {
+      const select = $("#selectUsuario");
+      const id = select.value;
+      const nome = select.selectedOptions[0]?.textContent;
+      const senha = $("#inputSenhaLogin").value;
+
+      if (!id) { showToast("Selecione um participante.", "error"); return; }
+      if (!senha) { showToast("Digite a sua senha.", "error"); return; }
+
+      try {
+        const usuario = await api("/api/usuarios/login", {
+          method: "POST",
+          body: JSON.stringify({ nome, senha }),
+        });
+        salvarUsuario(usuario);
+        $("#inputSenhaLogin").value = "";
+        showToast(`Bem-vindo, ${usuario.nome}!`);
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+
+    // Cadastro do Usuário
+    $("#btnCadastrar").addEventListener("click", async () => {
+      const nome = $("#inputNome").value.trim();
+      const senha = $("#inputSenhaCadastro").value;
+
+      if (!nome) { showToast("Digite seu nome.", "error"); return; }
+      if (senha.length < 4) { showToast("A senha deve ter pelo menos 4 caracteres.", "error"); return; }
+
+      try {
+        const usuario = await api("/api/usuarios", {
+          method: "POST",
+          body: JSON.stringify({ nome, senha }),
+        });
+        salvarUsuario(usuario);
+        $("#inputNome").value = "";
+        $("#inputSenhaCadastro").value = "";
+        await carregarUsuarios();
+        showToast(`Cadastro feito! Bem-vindo, ${nome}!`);
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+
+    $("#btnLogout").addEventListener("click", () => {
+      usuarioAtual = null;
+      localStorage.removeItem(STORAGE_KEY);
+      atualizarBarraUsuario();
+      showToast("Você saiu do bolão.");
+    });
+
+    async function importarCsvPadrao() {
+      const btn = $("#btnImportarCsv");
+      const hint = $("#syncHint");
+      btn.disabled = true;
+      btn.textContent = "Importando...";
+
+      try {
+        const res = await api("/api/admin/importar-copa", { method: "POST" });
+        showToast(`${res.total} jogos importados de ${res.arquivo}!`);
+        hint.textContent = `Última importação: ${res.arquivo} — ${res.total} jogos no bolão.`;
+        await carregarPartidas();
+      } catch (err) {
+        showToast(err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Importar CSV padrão";
+      }
+    }
+
+    async function importarCsvArquivo(file) {
+      const hint = $("#syncHint");
+      const formData = new FormData();
+      formData.append("arquivo", file);
+
+      const res = await fetch("/api/admin/importar-copa/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.detail;
+        throw new Error(typeof detail === "string" ? detail : "Falha ao enviar CSV");
+      }
+
+      showToast(`${data.total} jogos importados de ${data.arquivo}!`);
+      hint.textContent = `Última importação: ${data.arquivo} — ${data.total} jogos no bolão.`;
+      await carregarPartidas();
+    }
+
+    $("#btnImportarCsv").addEventListener("click", importarCsvPadrao);
+    $("#btnEnviarCsv").addEventListener("click", () => $("#inputCsv").click());
+    $("#inputCsv").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        await importarCsvArquivo(file);
+      } catch (err) {
+        showToast(err.message, "error");
+      } finally {
+        e.target.value = "";
+      }
+    });
+    $("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
+    $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
+
+    // Init
+    atualizarBarraUsuario();
+    carregarUsuarios();
+  </script>
+</body>
+</html>

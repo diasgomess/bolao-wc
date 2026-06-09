@@ -1,0 +1,21 @@
+# Ambientes virtuais (Python)
+.venv/
+venv/
+env/
+ENV/
+
+# Variáveis de ambiente (SEGURANÇA - NUNCA ENVIAR O .ENV)
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+
+sdd.txt
