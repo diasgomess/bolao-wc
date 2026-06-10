@@ -278,6 +278,10 @@ class PartidaUpdate(BaseModel):
     status: str | None = None
     data_hora_jogo: str | None = None
 
+class PartidaCreate(BaseModel):
+    time_casa: str = Field(..., min_length=1, max_length=50)
+    time_fora: str = Field(..., min_length=1, max_length=50)
+    data_hora_jogo: str  # String em formato ISO 8601
 
 class PalpiteCreate(BaseModel):
     usuario_id: UUID
@@ -706,6 +710,54 @@ async def atualizar_partida_manualmente(partida_id: int, payload: PartidaUpdate)
         "gols_fora": partida["gols_fora"],
         "status": partida["status"],
         "palpite_expirado": not palpite_dentro_do_prazo(data_hora_jogo),
+    }
+
+@app.post("/api/admin/partidas", response_model=PartidaResponse, status_code=status.HTTP_201_CREATED)
+async def criar_partida_manualmente(payload: PartidaCreate):
+    """Cria uma nova partida manualmente pelo painel admin."""
+    db = get_supabase()
+
+    # Formata a data para garantir que seja salva corretamente
+    data_hora_jogo = parse_timestamp(payload.data_hora_jogo)
+
+    # 1. Busca o maior ID atual na tabela de partidas
+    max_id_resp = db.table("partidas").select("id").order("id", desc=True).limit(1).execute()
+    
+    # 2. Define o novo ID (se a tabela estiver vazia, começa no 1)
+    novo_id = 1
+    if max_id_resp.data:
+        novo_id = max_id_resp.data[0]["id"] + 1
+
+    # 3. Insere a partida com o novo ID calculado
+    nova_partida = {
+        "id": novo_id,
+        "time_casa": payload.time_casa.strip(),
+        "time_fora": payload.time_fora.strip(),
+        "data_hora_jogo": data_hora_jogo.isoformat(),
+        "status": "SCHEDULED",
+        "gols_casa": None,
+        "gols_fora": None
+    }
+
+    resultado = db.table("partidas").insert(nova_partida).execute()
+
+    if not resultado.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Erro ao criar partida no banco de dados."
+        )
+
+    partida = resultado.data[0]
+    
+    return {
+        "id": partida["id"],
+        "time_casa": partida["time_casa"],
+        "time_fora": partida["time_fora"],
+        "data_hora_jogo": partida["data_hora_jogo"],
+        "gols_casa": partida["gols_casa"],
+        "gols_fora": partida["gols_fora"],
+        "status": partida["status"],
+        "palpite_expirado": not palpite_dentro_do_prazo(parse_timestamp(partida["data_hora_jogo"])),
     }
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
