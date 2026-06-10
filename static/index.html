@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -22,13 +23,17 @@
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
       --glow-green: 0 0 20px rgba(57, 255, 20, 0.25);
       --glow-purple: 0 0 24px rgba(157, 78, 223, 0.2);
-      
+
       /* Nova cor para o botão de palpite já salvo */
       --btn-saved: #0e3a1a;
       --text-saved: #5cf576;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -91,7 +96,10 @@
       gap: 0.5rem;
     }
 
-    .user-bar .logged strong { color: var(--accent); text-shadow: var(--glow-green); }
+    .user-bar .logged strong {
+      color: var(--accent);
+      text-shadow: var(--glow-green);
+    }
 
     .badge {
       display: inline-block;
@@ -130,7 +138,9 @@
       transition: color 0.2s, border-color 0.2s;
     }
 
-    .tab:hover { color: var(--purple); }
+    .tab:hover {
+      color: var(--purple);
+    }
 
     .tab.active {
       color: var(--purple);
@@ -138,8 +148,13 @@
       text-shadow: var(--glow-purple);
     }
 
-    .panel { display: none; }
-    .panel.active { display: block; }
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
 
     .card {
       background: var(--bg-card);
@@ -177,7 +192,8 @@
       font-weight: 500;
     }
 
-    input, select {
+    input,
+    select {
       width: 100%;
       padding: 0.65rem 0.85rem;
       background: var(--bg-elevated);
@@ -189,7 +205,8 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    input:focus, select:focus {
+    input:focus,
+    select:focus {
       border-color: var(--purple);
       box-shadow: 0 0 0 3px rgba(157, 78, 223, 0.2);
     }
@@ -209,7 +226,9 @@
       transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
     }
 
-    .btn:active { transform: scale(0.98); }
+    .btn:active {
+      transform: scale(0.98);
+    }
 
     .btn-primary {
       background: var(--accent);
@@ -229,6 +248,7 @@
       border: 1px solid rgba(92, 245, 118, 0.3);
       box-shadow: none;
     }
+
     .btn-primary.palpite-salvo:hover {
       background: #145225;
     }
@@ -260,7 +280,11 @@
       padding-top: 1rem;
     }
 
-    .matches { display: flex; flex-direction: column; gap: 1rem; }
+    .matches {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
 
     .match-card {
       background: var(--bg-card);
@@ -356,14 +380,17 @@
       text-shadow: var(--glow-purple);
     }
 
-    .ranking-table-wrap { overflow-x: auto; }
+    .ranking-table-wrap {
+      overflow-x: auto;
+    }
 
     table {
       width: 100%;
       border-collapse: collapse;
     }
 
-    th, td {
+    th,
+    td {
       padding: 0.85rem 1rem;
       text-align: left;
       border-bottom: 1px solid var(--border);
@@ -378,7 +405,9 @@
       background: rgba(157, 78, 223, 0.06);
     }
 
-    tr:hover td { background: rgba(157, 78, 223, 0.04); }
+    tr:hover td {
+      background: rgba(157, 78, 223, 0.04);
+    }
 
     tr.leader td:first-child {
       color: var(--accent);
@@ -455,11 +484,17 @@
     }
 
     @media (max-width: 600px) {
-      header h1 { font-size: 1.5rem; }
-      .match-teams { font-size: 1rem; }
+      header h1 {
+        font-size: 1.5rem;
+      }
+
+      .match-teams {
+        font-size: 1rem;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -481,7 +516,9 @@
     <nav class="tabs">
       <button class="tab active" data-tab="usuario">Participante</button>
       <button class="tab" data-tab="jogos">Jogos da Copa</button>
-      <button class="tab" data-tab="meus-palpites">Meus Palpites</button> <button class="tab" data-tab="ranking">Classificação</button>
+      <button class="tab" data-tab="meus-palpites">Meus Palpites</button> <button class="tab"
+        data-tab="ranking">Classificação</button>
+      <button class="tab" data-tab="admin" id="tabAdmin" style="display: none; color: var(--danger); font-weight: 800;">Admin</button>
     </nav>
 
     <section class="panel active" id="panel-usuario">
@@ -500,9 +537,9 @@
           </div>
           <button class="btn btn-primary" id="btnSelecionar">Entrar</button>
         </div>
-        
+
         <p class="hint">ou cadastre um novo participante:</p>
-        
+
         <div class="form-row">
           <div class="field">
             <label for="inputNome">Seu nome</label>
@@ -557,9 +594,20 @@
             </tr>
           </thead>
           <tbody id="rankingBody">
-            <tr><td colspan="5" class="empty">Carregando...</td></tr>
+            <tr>
+              <td colspan="5" class="empty">Carregando...</td>
+            </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-admin">
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btnAtualizarAdmin">Recarregar Lista Admin</button>
+      </div>
+      <div class="matches" id="adminMatchesList">
+        <div class="empty">Área restrita.</div>
       </div>
     </section>
   </div>
@@ -598,18 +646,95 @@
       const logged = $("#userLogged");
       const guest = $("#userGuest");
       const logout = $("#btnLogout");
+      const tabAdmin = $("#tabAdmin"); // Nova linha
 
       if (usuarioAtual) {
         logged.style.display = "flex";
         guest.style.display = "none";
         logout.style.display = "block";
         $("#userName").textContent = usuarioAtual.nome;
+
+        // Controle de acesso à aba Admin
+        if (usuarioAtual.is_admin) {
+          tabAdmin.style.display = "inline-block";
+        } else {
+          tabAdmin.style.display = "none";
+        }
+
         await carregarPalpitesDoUsuario();
       } else {
         logged.style.display = "none";
         guest.style.display = "block";
         logout.style.display = "none";
+        tabAdmin.style.display = "none"; // <-- Esconde se deslogar
         palpitesDoUsuario = [];
+      }
+    }
+
+    async function carregarPainelAdmin() {
+      const lista = $("#adminMatchesList");
+      if (!usuarioAtual || !usuarioAtual.is_admin) return;
+
+      try {
+        const partidas = await api("/api/partidas");
+        lista.innerHTML = partidas.map((p) => `
+            <article class="match-card" data-admin-id="${p.id}">
+              <div class="match-header" style="margin-bottom: 0.5rem;">
+                <div class="match-teams">${p.time_casa} vs ${p.time_fora}</div>
+                <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
+              </div>
+              <div class="form-row" style="background: var(--bg-elevated); padding: 1rem; border-radius: 8px;">
+                <div class="field" style="min-width: 60px;">
+                  <label>Gols Casa</label>
+                  <input type="number" class="admin-gols-casa" value="${p.gols_casa !== null ? p.gols_casa : ''}" min="0">
+                </div>
+                <div class="field" style="min-width: 60px;">
+                  <label>Gols Fora</label>
+                  <input type="number" class="admin-gols-fora" value="${p.gols_fora !== null ? p.gols_fora : ''}" min="0">
+                </div>
+                <div class="field">
+                  <label>Status</label>
+                  <select class="admin-status">
+                    <option value="SCHEDULED" ${p.status === 'SCHEDULED' ? 'selected' : ''}>Agendado</option>
+                    <option value="IN_PLAY" ${p.status === 'IN_PLAY' ? 'selected' : ''}>Ao Vivo</option>
+                    <option value="FINISHED" ${p.status === 'FINISHED' ? 'selected' : ''}>Finalizado</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary btn-admin-salvar" style="background: var(--danger); box-shadow: none;">Salvar Alteração</button>
+              </div>
+            </article>
+        `).join("");
+
+        // Adiciona os eventos de clique para cada botão de salvar no painel admin
+        lista.querySelectorAll(".btn-admin-salvar").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const card = btn.closest(".match-card");
+            const partidaId = Number(card.dataset.adminId);
+            const golsCasaVal = card.querySelector(".admin-gols-casa").value;
+            const golsForaVal = card.querySelector(".admin-gols-fora").value;
+            const status = card.querySelector(".admin-status").value;
+
+            const payload = { status: status };
+            if (golsCasaVal !== "") payload.gols_casa = Number(golsCasaVal);
+            if (golsForaVal !== "") payload.gols_fora = Number(golsForaVal);
+
+            try {
+              btn.textContent = "Salvando...";
+              await api(`/api/admin/partidas/${partidaId}`, {
+                method: "PUT",
+                body: JSON.stringify(payload),
+              });
+              showToast("Partida atualizada com sucesso!");
+              btn.textContent = "Salvar Alteração";
+            } catch (err) {
+              showToast(err.message, "error");
+              btn.textContent = "Salvar Alteração";
+            }
+          });
+        });
+
+      } catch (err) {
+        lista.innerHTML = `<div class="empty">Erro ao carregar jogos admin: ${err.message}</div>`;
       }
     }
 
@@ -699,7 +824,7 @@
           const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
           const golsCasaVal = palpiteSalvo ? palpiteSalvo.palpite_gols_casa : 0;
           const golsForaVal = palpiteSalvo ? palpiteSalvo.palpite_gols_fora : 0;
-          
+
           const textoBotao = palpiteSalvo ? "Palpite Salvo ✓" : "Salvar Palpite";
           const classeBotao = palpiteSalvo ? "btn btn-primary palpite-salvo" : "btn btn-primary";
 
@@ -766,11 +891,11 @@
                 }),
               });
               showToast("Palpite salvo com sucesso!");
-              
+
               // Muda o estado do botão visualmente de imediato
               btn.textContent = "Palpite Salvo ✓";
               btn.classList.add("palpite-salvo");
-              
+
               // Atualiza o cache local
               await carregarPalpitesDoUsuario();
             } catch (err) {
@@ -806,7 +931,7 @@
         lista.innerHTML = partidasPalpitadas.map((p) => {
           const st = statusPartida(p);
           const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
-          
+
           return `
             <article class="match-card">
               <div class="match-header">
@@ -870,6 +995,7 @@
         if (tab.dataset.tab === "jogos") carregarPartidas();
         if (tab.dataset.tab === "meus-palpites") carregarMeusPalpitesExclusivos();
         if (tab.dataset.tab === "ranking") carregarRanking();
+        if (tab.dataset.tab === "admin") carregarPainelAdmin();
       });
     });
 
@@ -983,6 +1109,7 @@
     $("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
     $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExclusivos);
     $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
+    $("#btnAtualizarAdmin")?.addEventListener("click", carregarPainelAdmin);
 
     // Inicialização assíncrona sequencial
     async function init() {
@@ -990,6 +1117,8 @@
       await carregarUsuarios();
     }
     init();
+
   </script>
 </body>
+
 </html>

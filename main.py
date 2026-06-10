@@ -270,6 +270,13 @@ class UsuarioLogin(BaseModel):
 class UsuarioResponse(BaseModel):
     id: UUID
     nome: str
+    is_admin: bool = False
+
+class PartidaUpdate(BaseModel):
+    gols_casa: int | None = None
+    gols_fora: int | None = None
+    status: str | None = None
+    data_hora_jogo: str | None = None
 
 
 class PalpiteCreate(BaseModel):
@@ -321,7 +328,7 @@ async def pagina_principal() -> HTMLResponse:
 async def listar_usuarios() -> list[dict[str, Any]]:
     """Lista participantes cadastrados (apenas ID e Nome)."""
     db = get_supabase()
-    resultado = db.table("usuarios").select("id, nome").order("nome").execute()
+    resultado = db.table("usuarios").select("id, nome, is_admin").order("nome").execute()
     return resultado.data or []
 
 
@@ -353,7 +360,7 @@ async def criar_usuario(payload: UsuarioCreate) -> dict[str, Any]:
         )
 
     usuario = resultado.data[0]
-    return {"id": usuario["id"], "nome": usuario["nome"]}
+    return {"id": usuario["id"], "nome": usuario["nome"], "is_admin": usuario.get("is_admin", False)}
 
 
 @app.post("/api/usuarios/login", response_model=UsuarioResponse)
@@ -365,7 +372,7 @@ async def login_usuario(payload: UsuarioLogin) -> dict[str, Any]:
 
     usuario_resp = (
         db.table("usuarios")
-        .select("id, nome, senha")
+        .select("id, nome, senha, is_admin")
         .eq("nome", nome)
         .maybe_single()
         .execute()
@@ -378,7 +385,7 @@ async def login_usuario(payload: UsuarioLogin) -> dict[str, Any]:
             detail="Nome de participante ou senha incorretos",
         )
 
-    return {"id": usuario["id"], "nome": usuario["nome"]}
+    return {"id": usuario["id"], "nome": usuario["nome"], "is_admin": usuario.get("is_admin", False)}
 
 
 @app.get("/api/partidas", response_model=list[PartidaResponse])
@@ -506,7 +513,7 @@ async def obter_ranking() -> list[dict[str, Any]]:
     """Retorna classificação ordenada por pontos_totais DESC."""
     db = get_supabase()
 
-    usuarios_resp = db.table("usuarios").select("id, nome").execute()
+    usuarios_resp = db.table("usuarios").select("id, nome, is_admin").execute()
     usuarios = usuarios_resp.data or []
 
     ranking_por_usuario: dict[str, dict[str, Any]] = {
@@ -668,5 +675,37 @@ async def sincronizar_copa() -> dict[str, Any]:
     """Alias para importar o CSV padrão da Copa."""
     return await importar_copa_csv_padrao()
 
+@app.put("/api/admin/partidas/{partida_id}", response_model=PartidaResponse)
+async def atualizar_partida_manualmente(partida_id: int, payload: PartidaUpdate):
+    """Atualiza placar, status e data de uma partida manualmente."""
+    db = get_supabase()
+    
+    update_data = {}
+    if payload.gols_casa is not None: update_data["gols_casa"] = payload.gols_casa
+    if payload.gols_fora is not None: update_data["gols_fora"] = payload.gols_fora
+    if payload.status is not None: update_data["status"] = payload.status
+    if payload.data_hora_jogo is not None: update_data["data_hora_jogo"] = payload.data_hora_jogo
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado enviado para atualização.")
+
+    resultado = db.table("partidas").update(update_data).eq("id", partida_id).execute()
+    
+    if not resultado.data:
+        raise HTTPException(status_code=404, detail="Partida não encontrada ou erro ao atualizar.")
+        
+    partida = resultado.data[0]
+    data_hora_jogo = parse_timestamp(partida["data_hora_jogo"])
+    
+    return {
+        "id": partida["id"],
+        "time_casa": partida["time_casa"],
+        "time_fora": partida["time_fora"],
+        "data_hora_jogo": partida["data_hora_jogo"],
+        "gols_casa": partida["gols_casa"],
+        "gols_fora": partida["gols_fora"],
+        "status": partida["status"],
+        "palpite_expirado": not palpite_dentro_do_prazo(data_hora_jogo),
+    }
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
