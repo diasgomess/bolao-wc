@@ -74,10 +74,6 @@ Contribuições são bem-vindas! Sinta-se à vontade para:
 - Sugerir melhorias
 - Fazer um fork e criar um pull request
 
-## Licença
-
-Este projeto é de código aberto e está disponível para uso pessoal e educacional.
-
 ## Contato
 
 Para dúvidas ou sugestões, entre em contato através das issues do repositório.
