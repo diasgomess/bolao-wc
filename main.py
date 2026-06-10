@@ -569,7 +569,12 @@ async def obter_ranking() -> list[dict[str, Any]]:
 
     return sorted(
         ranking_por_usuario.values(),
-        key=lambda item: (-item["pontos_totais"], item["nome"].casefold()),
+        key=lambda item: (
+            -item["pontos_totais"],
+            -item["acertos_cheios"],
+            -item["acertos_vencedor"],
+            item["nome"].casefold(),
+        ),
     )
 
 

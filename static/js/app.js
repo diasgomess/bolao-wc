@@ -2,6 +2,7 @@ const STORAGE_KEY = "bolaofort_usuario";
 
 let usuarioAtual = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
 let palpitesDoUsuario = []; // Armazena em memória os palpites do usuário logado
+let partidasCache = [];
 
 const $ = (sel) => document.querySelector(sel);
 const toast = $("#toast");
@@ -119,112 +120,210 @@ function statusPartida(p) {
 }
 
 async function carregarPartidas() {
-  const lista = $("#matchesList");
   try {
-    const partidas = await api("/api/partidas");
-    if (!partidas.length) {
-      lista.innerHTML = '<div class="empty">Nenhum jogo cadastrado.</div>';
-      return;
-    }
-
+    // Busca os dados da API uma única vez e alimenta o cache local
+    partidasCache = await api("/api/partidas");
     await carregarPalpitesDoUsuario();
 
-    lista.innerHTML = partidas.map((p) => {
-      const st = statusPartida(p);
-      const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
+    // Dispara a renderização visual dos cards
+    renderizarPartidas();
+  } catch (err) {
+    $("#matchesList").innerHTML = `<div class="empty">Erro ao carregar jogos: ${err.message}</div>`;
+  }
+}
 
-      const temPalpite = !!palpiteSalvo;
-      const bloqueado = !st.aberto;
-      const inputsDisabled = (temPalpite && !bloqueado) ? "disabled" : (bloqueado ? "disabled" : "");
+function renderizarPartidas() {
+  const listaContainer = document.getElementById("matchesList");
+  
+  const inputFiltro = document.getElementById("inputFiltroSelecao");
+  const termoBusca = inputFiltro ? inputFiltro.value.toLowerCase().trim() : "";
 
-      const golsCasaVal = temPalpite ? palpiteSalvo.palpite_gols_casa : "";
-      const golsForaVal = temPalpite ? palpiteSalvo.palpite_gols_fora : "";
+  if (!partidasCache || !partidasCache.length) {
+    listaContainer.innerHTML = '<div class="empty">Nenhum jogo disponível no momento.</div>';
+    return;
+  }
 
-      if (p.status === "FINISHED") {
-        return `
-          <article class="match-card">
-            <div class="match-header">
-              <div>
-                <div class="match-teams">${p.time_casa} vs ${p.time_fora}</div>
-                <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
-              </div>
-              <span class="status-tag ${st.cls}">${st.label}</span>
-            </div>
-            <div style="margin-top:10px; font-weight:bold; color:var(--text-muted)">
-              Resultado Oficial: ${p.gols_casa} × ${p.gols_fora}
-              ${temPalpite ? `<br><span style="font-size:0.8rem">Seu palpite: ${golsCasaVal}×${golsForaVal}</span>` : ''}
-            </div>
-          </article>`;
-      }
+  // 1. Filtrar as partidas na memória
+  const partidasFiltradas = partidasCache.filter(partida => 
+    partida.time_casa.toLowerCase().includes(termoBusca) || 
+    partida.time_fora.toLowerCase().includes(termoBusca)
+  );
+
+  if (!partidasFiltradas.length) {
+    listaContainer.innerHTML = '<div class="empty">Nenhuma partida encontrada para esta seleção.</div>';
+    return;
+  }
+
+  // 2. Agrupar por dia
+  const gruposPorData = {};
+  partidasFiltradas.forEach(partida => {
+    const dataObjeto = new Date(partida.data_hora_jogo);
+    let dataFormatada = dataObjeto.toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    dataFormatada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
+
+    if (!gruposPorData[dataFormatada]) {
+      gruposPorData[dataFormatada] = [];
+    }
+    gruposPorData[dataFormatada].push(partida);
+  });
+
+  // 3. Construir o HTML
+  let htmlFinal = "";
+
+  for (const dataGrupo in gruposPorData) {
+    htmlFinal += `
+      <div class="date-group-header" style="margin: 2rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+        <span></span> ${dataGrupo}
+      </div>
+    `;
+
+    htmlFinal += gruposPorData[dataGrupo].map(partida => {
+      const palpiteSalvo = palpitesDoUsuario.find(p => p.partida_id === partida.id);
+      const jaPalpitou = !!palpiteSalvo;
+      const golsCasaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_casa : "";
+      const golsForaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_fora : "";
+      
+      const bloqueioTotal = partida.palpite_expirado || partida.status === "FINISHED";
+      const inputsDesabilitados = (jaPalpitou || bloqueioTotal) ? 'disabled' : '';
+
+      const horarioJogo = new Date(partida.data_hora_jogo).toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+
+      const estiloCard = jaPalpitou 
+        ? "background: #161b22; border: 1px solid #238636; border-left: 5px solid #238636; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;"
+        : "background: #161b22; border: 1px solid #30363d; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;";
 
       return `
-        <article class="match-card" data-id="${p.id}">
-          <div class="match-header">
-            <div>
-              <div class="match-teams">${p.time_casa} vs ${p.time_fora}</div>
-              <div class="match-meta">${formatarData(p.data_hora_jogo)}</div>
-            </div>
-            <span class="status-tag ${st.cls}">${st.label}</span>
+        <article class="match-card" data-id="${partida.id}" style="${estiloCard}">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 0.85rem; color: #8b949e; font-weight: 500;">${horarioJogo} | ID: ${partida.id}</span>
+            <span class="status-tag" style="padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: ${partida.status === 'FINISHED' ? '#21262d' : '#238636'}; color: #fff;">
+              ${partida.status}
+            </span>
           </div>
 
-          <div class="palpite-row">
-            <div class="score-inputs">
-              <input type="number" min="0" max="99" value="${golsCasaVal}" class="gols-casa" ${inputsDisabled} />
-              <span class="score-sep">×</span>
-              <input type="number" min="0" max="99" value="${golsForaVal}" class="gols-fora" ${inputsDisabled} />
-            </div>
-          
-            <div class="actions-container">
-              ${bloqueado ? `<button class="btn" disabled>Fechado</button>` : `
-                ${temPalpite ? `
-                  <button class="btn btn-warning btn-editar" style="padding: 6px 10px;">Editar</button>
-                  <button class="btn btn-primary btn-salvar" style="display:none; padding: 6px 10px;">Atualizar</button>
-                ` : `
-                  <button class="btn btn-primary btn-salvar" style="padding: 6px 10px;">Salvar</button>
-                `}
-              `}
-            </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <div style="font-weight: bold; font-size: 1.1rem; width: 42%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${partida.time_casa}</div>
+            <div style="width: 16%; text-align: center; color: #39ff14; font-weight: bold; font-size: 0.9rem; padding: 2px 0;">VS</div>
+            <div style="font-weight: bold; font-size: 1.1rem; width: 42%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${partida.time_fora}</div>
           </div>
-        </article>`;
+
+          <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px;">
+            <input 
+              type="number" 
+              min="0" 
+              class="gols-casa" 
+              value="${golsCasaPalpite}" 
+              data-partida="${partida.id}"
+              ${inputsDesabilitados} 
+              style="width: 55px; text-align: center; padding: 6px; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.05rem;"
+            />
+            <span style="color: #8b949e; font-weight: bold;">×</span>
+            <input 
+              type="number" 
+              min="0" 
+              class="gols-fora" 
+              value="${golsForaPalpite}" 
+              data-partida="${partida.id}"
+              ${inputsDesabilitados} 
+              style="width: 55px; text-align: center; padding: 6px; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.05rem;"
+            />
+
+            ${bloqueioTotal ? 
+              `<button class="btn" disabled style="opacity: 0.5; padding: 6px 12px; font-size: 0.9rem; margin-left: 5px;">Bloqueado</button>` : 
+              (jaPalpitou ? `
+                <button type="button" class="btn btn-editar" 
+                         style="padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #21262d; color: #fff; border: 1px solid #30363d; margin-left: 5px;">
+                  Editar
+                 </button>
+                <button type="button" class="btn btn-primary btn-salvar" 
+                         style="display:none; padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; margin-left: 5px;" 
+                         onclick="salvarPalpiteFront(${partida.id}, this)">
+                  Atualizar
+                 </button>
+              ` : `
+                <button type="button" class="btn btn-primary btn-salvar" 
+                         style="padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; margin-left: 5px;" 
+                         onclick="salvarPalpiteFront(${partida.id}, this)">
+                  Salvar
+                 </button>
+              `)
+            }
+          </div>
+
+          ${partida.status === "FINISHED" ? `
+            <div style="text-align: center; margin-top: 12px; color: #8b949e; font-size: 0.85rem; border-top: 1px dashed #30363d; padding-top: 8px;">
+              Resultado Oficial: <strong style="color: #fff; font-size: 0.95rem;">${partida.gols_casa} × ${partida.gols_fora}</strong>
+            </div>
+          ` : ''}
+        </article>
+      `;
     }).join("");
+  }
 
-    lista.querySelectorAll(".btn-editar").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const card = btn.closest(".match-card");
-        card.querySelectorAll("input").forEach(i => i.disabled = false);
-        btn.style.display = "none";
-        card.querySelector(".btn-salvar").style.display = "inline-block";
-      });
+  listaContainer.innerHTML = htmlFinal;
+
+  // Ouvinte do botão editar funcionando perfeitamente independente da árvore DOM anterior
+  listaContainer.querySelectorAll(".btn-editar").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".match-card");
+      card.querySelectorAll("input").forEach(i => i.disabled = false);
+      btn.style.display = "none";
+      card.querySelector(".btn-salvar").style.display = "inline-block";
+    });
+  });
+}
+
+async function salvarPalpiteFront(partidaId, botao) {
+  // 1. Valida se o usuário está logado
+  if (!exigirLogin()) return;
+
+  // 2. Encontra o card e captura os valores dos inputs
+  const card = botao.closest(".match-card");
+  const golsCasaVal = card.querySelector(".gols-casa").value;
+  const golsForaVal = card.querySelector(".gols-fora").value;
+
+  if (golsCasaVal === "" || golsForaVal === "") {
+    showToast("Por favor, preencha os dois placares antes de salvar.", "error");
+    return;
+  }
+
+  // ✅ CORREÇÃO: Chaves alteradas para o padrão esperado pelo Pydantic do FastAPI
+  const payload = {
+    usuario_id: usuarioAtual.id,
+    partida_id: partidaId,
+    gols_casa: Number(golsCasaVal),
+    gols_fora: Number(golsForaVal)
+  };
+
+  try {
+    botao.disabled = true;
+    const textoOriginal = botao.textContent;
+    botao.textContent = "...";
+
+    // 3. Envia para a API
+    await api("/api/palpites", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
 
-    lista.querySelectorAll(".btn-salvar").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        if (!exigirLogin()) return;
-        const card = btn.closest(".match-card");
-        const partidaId = Number(card.dataset.id);
-        const golsCasa = Number(card.querySelector(".gols-casa").value);
-        const golsFora = Number(card.querySelector(".gols-fora").value);
+    showToast("Palpite salvo com sucesso!");
 
-        try {
-          btn.textContent = "Salvando...";
-          btn.disabled = true;
-          await api("/api/palpites", {
-            method: "POST",
-            body: JSON.stringify({ usuario_id: usuarioAtual.id, partida_id: partidaId, gols_casa: golsCasa, gols_fora: golsFora }),
-          });
-          showToast("Palpite salvo com sucesso!");
-          await carregarPalpitesDoUsuario();
-          carregarPartidas();
-        } catch (err) {
-          showToast(err.message, "error");
-          btn.textContent = "Salvar";
-          btn.disabled = false;
-        }
-      });
-    });
+    // 4. Recarrega as partidas para atualizar o cache e travar os campos com o botão "Editar"
+    await carregarPartidas();
 
   } catch (err) {
-    lista.innerHTML = `<div class="empty">Erro ao carregar jogos: ${err.message}</div>`;
+    showToast(err.message, "error");
+    // Se der erro, devolve o botão ao estado funcional
+    botao.disabled = false;
+    botao.textContent = "Atualizar";
   }
 }
 
@@ -455,7 +554,7 @@ async function importarCsvPadrao() {
   try {
     const res = await api("/api/admin/importar-copa", { method: "POST" });
     showToast(`${res.total} jogos importados de ${res.arquivo}!`);
-    if(hint) hint.textContent = `Última importação: ${res.arquivo} — ${res.total} jogos no bolão.`;
+    if (hint) hint.textContent = `Última importação: ${res.arquivo} — ${res.total} jogos no bolão.`;
     await carregarPartidas();
   } catch (err) {
     showToast(err.message, "error");
@@ -481,7 +580,7 @@ async function importarCsvArquivo(file) {
   }
 
   showToast(`${data.total} jogos importados de ${data.arquivo}!`);
-  if(hint) hint.textContent = `Última importação: ${data.arquivo} — ${data.total} jogos no bolão.`;
+  if (hint) hint.textContent = `Última importação: ${data.arquivo} — ${data.total} jogos no bolão.`;
   await carregarPartidas();
 }
 
@@ -503,6 +602,7 @@ $("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
 $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExclusivos);
 $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
 $("#btnAtualizarAdmin")?.addEventListener("click", carregarPainelAdmin);
+$("#inputFiltroSelecao").addEventListener("input", renderizarPartidas);
 
 $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
   const timeCasa = $("#adminNewTimeCasa").value.trim();
