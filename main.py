@@ -82,7 +82,18 @@ def parse_timestamp(value: str) -> datetime:
 
 
 def palpite_dentro_do_prazo(data_hora_jogo: datetime) -> bool:
-    agora = datetime.now(timezone.utc)
+    # Define o fuso horário de Brasília (UTC-3)
+    brasilia_tz = timezone(timedelta(hours=-3))
+    
+    # Pega o horário atual em Brasília
+    agora = datetime.now(brasilia_tz)
+    
+    # Garante que a data do jogo esteja no mesmo fuso para comparação correta
+    if data_hora_jogo.tzinfo is None:
+        data_hora_jogo = data_hora_jogo.replace(tzinfo=brasilia_tz)
+    else:
+        data_hora_jogo = data_hora_jogo.astimezone(brasilia_tz)
+        
     return data_hora_jogo - agora > LOCKOUT_ANTECEDENCIA
 
 
