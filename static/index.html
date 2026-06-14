@@ -1,232 +1,205 @@
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BolãoFort — Copa do Mundo 2026</title>
-    <link rel="stylesheet" href="static\css\style.css" />
-    <link rel="icon" type="image/png" href="images\favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="images\favicon.svg" />
-  </head>
 
-  <body>
-    <div class="container">
-      <header>
-        <h1>BolãoFort</h1>
-        <p>Quem perder paga a dose!</p>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BolãoFort — Copa do Mundo 2026</title>
+  <link rel="stylesheet" href="static\css\style.css" />
+  <link rel="icon" type="image/png" href="images\favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="images\favicon.svg" />
+</head>
 
-      <div class="user-bar" id="userBar">
-        <div class="logged" id="userLogged" style="display: none">
-          <span class="badge">Online</span>
-          <span>Olá, <strong id="userName"></strong></span>
+<body>
+  <div class="container">
+    <header>
+      <h1>BolãoFort</h1>
+      <p>Quem perder paga a dose!</p>
+    </header>
+
+    <div class="user-bar" id="userBar">
+      <div class="logged" id="userLogged" style="display: none">
+        <span class="badge">Online</span>
+        <span>Olá, <strong id="userName"></strong></span>
+      </div>
+      <div id="userGuest" style="color: var(--text-muted); font-size: 0.9rem">
+        Nenhum participante selecionado
+      </div>
+      <button class="btn btn-ghost" id="btnLogout" style="display: none">
+        Sair
+      </button>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="usuario">Participante</button>
+      <button class="tab" data-tab="jogos">Jogos</button>
+      <button class="tab" data-tab="meus-palpites">Meus Palpites</button>
+      <button class="tab" data-tab="ranking">Classificação</button>
+      <button class="tab" data-tab="admin" id="tabAdmin" style="display: none; color: var(--danger); font-weight: 800">
+        Admin
+      </button>
+    </nav>
+
+    <section class="panel active" id="panel-usuario">
+      <div class="card">
+        <h2>Entrar no bolão</h2>
+        <div class="form-row">
+          <div class="field">
+            <label for="selectUsuario">Participante cadastrado</label>
+            <select id="selectUsuario">
+              <option value="">— Selecione —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="inputSenhaLogin">Sua Senha</label>
+            <input type="password" id="inputSenhaLogin" placeholder="Digite sua senha" />
+          </div>
+          <button class="btn btn-primary" id="btnSelecionar">Entrar</button>
         </div>
-        <div id="userGuest" style="color: var(--text-muted); font-size: 0.9rem">
-          Nenhum participante selecionado
+
+        <p class="hint">ou cadastre um novo participante:</p>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="inputNome">Seu nome</label>
+            <input type="text" id="inputNome" placeholder="Ex: Matheus" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="inputSenhaCadastro">Escolha uma Senha</label>
+            <input type="password" id="inputSenhaCadastro" placeholder="Mínimo 4 caracteres" />
+          </div>
+          <button class="btn btn-primary" id="btnCadastrar">
+            Cadastrar e entrar
+          </button>
         </div>
-        <button class="btn btn-ghost" id="btnLogout" style="display: none">
-          Sair
+      </div>
+    </section>
+
+    <section class="panel" id="panel-jogos">
+
+      <div class="filters-container">
+
+        <div class="filter-group select-group">
+          <label for="selectCampeonato">Campeonato</label>
+          <select id="selectCampeonato">
+            <option value="TODOS">Todos os Campeonatos</option>
+          </select>
+        </div>
+
+        <div class="filter-group search-group">
+          <label for="inputFiltroSelecao">Procurar equipe</label>
+          <input type="text" id="inputFiltroSelecao" placeholder="Buscar país ou clube..." autocomplete="off" />
+        </div>
+
+        <div class="filter-group action-group">
+          <button class="btn btn-ghost" id="btnAtualizarJogos">
+            Atualizar Jogos
+          </button>
+        </div>
+
+      </div>
+
+      <div class="matches" id="matchesList">
+        <div class="empty">Carregando jogos...</div>
+      </div>
+
+    </section>
+
+    <section class="panel" id="panel-meus-palpites">
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btnAtualizarMeusPalpites">
+          Atualizar meus palpites
+        </button>
+      </div>
+      <div class="matches" id="myMatchesList">
+        <div class="empty">
+          Selecione ou cadastre um participante para ver os palpites salvos.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-ranking">
+      <div class="toolbar">
+        <button class="btn btn-ghost" id="btnAtualizarRanking">
+          Atualizar ranking
+        </button>
+      </div>
+      <div class="card ranking-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Participante</th>
+              <th>Pontos</th>
+              <th>Placares</th>
+              <th>Vencedor</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody">
+            <tr>
+              <td colspan="5" class="empty">Carregando...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-admin">
+      <div class="toolbar" style="gap: 1rem; flex-wrap: wrap">
+        <span class="sync-hint" id="importHint">Área do Administrador — Gerenciamento de Jogos</span>
+        <button class="btn btn-ghost" id="btnImportarCsv">
+          Importar CSV Padrão
+        </button>
+        <button class="btn btn-primary" id="btnEnviarCsv">
+          Selecionar Arquivo CSV
+        </button>
+        <input type="file" id="inputCsv" accept=".csv" style="display: none" />
+        <button class="btn btn-ghost" id="btnAtualizarAdmin" style="margin-left: auto">
+          Recarregar Lista
         </button>
       </div>
 
-      <nav class="tabs">
-        <button class="tab active" data-tab="usuario">Participante</button>
-        <button class="tab" data-tab="jogos">Jogos da Copa</button>
-        <button class="tab" data-tab="meus-palpites">Meus Palpites</button>
-        <button class="tab" data-tab="ranking">Classificação</button>
-        <button
-          class="tab"
-          data-tab="admin"
-          id="tabAdmin"
-          style="display: none; color: var(--danger); font-weight: 800"
-        >
-          Admin
-        </button>
-      </nav>
-
-      <section class="panel active" id="panel-usuario">
-        <div class="card">
-          <h2>Entrar no bolão</h2>
-          <div class="form-row">
-            <div class="field">
-              <label for="selectUsuario">Participante cadastrado</label>
-              <select id="selectUsuario">
-                <option value="">— Selecione —</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="inputSenhaLogin">Sua Senha</label>
-              <input
-                type="password"
-                id="inputSenhaLogin"
-                placeholder="Digite sua senha"
-              />
-            </div>
-            <button class="btn btn-primary" id="btnSelecionar">Entrar</button>
+      <div class="card" style="margin-bottom: 1.5rem; border-color: var(--danger)">
+        <h2 style="margin-bottom: 1rem; color: var(--danger); font-size: 1.2rem">
+          Adicionar Novo Jogo
+        </h2>
+        <div class="form-row">
+          <div class="field">
+            <label>Time Casa</label>
+            <input type="text" id="adminNewTimeCasa" placeholder="Ex: Brasil" />
           </div>
-
-          <p class="hint">ou cadastre um novo participante:</p>
-
-          <div class="form-row">
-            <div class="field">
-              <label for="inputNome">Seu nome</label>
-              <input
-                type="text"
-                id="inputNome"
-                placeholder="Ex: Matheus"
-                maxlength="100"
-              />
-            </div>
-            <div class="field">
-              <label for="inputSenhaCadastro">Escolha uma Senha</label>
-              <input
-                type="password"
-                id="inputSenhaCadastro"
-                placeholder="Mínimo 4 caracteres"
-              />
-            </div>
-            <button class="btn btn-primary" id="btnCadastrar">
-              Cadastrar e entrar
-            </button>
+          <div class="field">
+            <label>Time Fora</label>
+            <input type="text" id="adminNewTimeFora" placeholder="Ex: Argentina" />
           </div>
-        </div>
-      </section>
-
-      <section class="panel" id="panel-jogos">
-        <div class="toolbar">
-          <input type="text" id="inputFiltroSelecao" placeholder="Filtrar por seleção..." style="max-width: 240px; padding: 0.5rem 0.75rem; font-size: 0.9rem;" />
-          <button class="btn btn-ghost" id="btnAtualizarJogos">
-            Atualizar jogos
-          </button>
-        </div>
-        <div class="matches" id="matchesList">
-          <div class="empty">Carregando jogos...</div>
-        </div>
-      </section>
-
-      <section class="panel" id="panel-meus-palpites">
-        <div class="toolbar">
-          <button class="btn btn-ghost" id="btnAtualizarMeusPalpites">
-            Atualizar meus palpites
-          </button>
-        </div>
-        <div class="matches" id="myMatchesList">
-          <div class="empty">
-            Selecione ou cadastre um participante para ver os palpites salvos.
+          <div class="field">
+            <label>Data e Hora</label>
+            <input type="datetime-local" id="adminNewDataHora" />
           </div>
-        </div>
-      </section>
-
-      <section class="panel" id="panel-ranking">
-        <div class="toolbar">
-          <button class="btn btn-ghost" id="btnAtualizarRanking">
-            Atualizar ranking
+          <button class="btn btn-primary" id="btnAdminCriarJogo" style="background: var(--danger); box-shadow: none">
+            Adicionar
           </button>
         </div>
-        <div class="card ranking-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Participante</th>
-                <th>Pontos</th>
-                <th>Placares</th>
-                <th>Vencedor</th>
-              </tr>
-            </thead>
-            <tbody id="rankingBody">
-              <tr>
-                <td colspan="5" class="empty">Carregando...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </div>
 
-      <section class="panel" id="panel-admin">
-        <div class="toolbar" style="gap: 1rem; flex-wrap: wrap">
-          <span class="sync-hint" id="importHint"
-            >Área do Administrador — Gerenciamento de Jogos</span
-          >
-          <button class="btn btn-ghost" id="btnImportarCsv">
-            Importar CSV Padrão
-          </button>
-          <button class="btn btn-primary" id="btnEnviarCsv">
-            Selecionar Arquivo CSV
-          </button>
-          <input
-            type="file"
-            id="inputCsv"
-            accept=".csv"
-            style="display: none"
-          />
-          <button
-            class="btn btn-ghost"
-            id="btnAtualizarAdmin"
-            style="margin-left: auto"
-          >
-            Recarregar Lista
-          </button>
-        </div>
-
-        <div
-          class="card"
-          style="margin-bottom: 1.5rem; border-color: var(--danger)"
-        >
-          <h2
-            style="margin-bottom: 1rem; color: var(--danger); font-size: 1.2rem"
-          >
-            Adicionar Novo Jogo
-          </h2>
-          <div class="form-row">
-            <div class="field">
-              <label>Time Casa</label>
-              <input
-                type="text"
-                id="adminNewTimeCasa"
-                placeholder="Ex: Brasil"
-              />
-            </div>
-            <div class="field">
-              <label>Time Fora</label>
-              <input
-                type="text"
-                id="adminNewTimeFora"
-                placeholder="Ex: Argentina"
-              />
-            </div>
-            <div class="field">
-              <label>Data e Hora</label>
-              <input type="datetime-local" id="adminNewDataHora" />
-            </div>
-            <button
-              class="btn btn-primary"
-              id="btnAdminCriarJogo"
-              style="background: var(--danger); box-shadow: none"
-            >
-              Adicionar
-            </button>
-          </div>
-        </div>
-
-        <h2
-          style="
+      <h2 style="
             margin-bottom: 1rem;
             color: var(--text-muted);
             font-size: 1.1rem;
-          "
-        >
-          Alterar Placares e Status dos Jogos
-        </h2>
-        <div class="matches" id="adminMatchesList">
-          <div class="empty">Carregando jogos para gerenciamento...</div>
-        </div>
-      </section>
+          ">
+        Alterar Placares e Status dos Jogos
+      </h2>
+      <div class="matches" id="adminMatchesList">
+        <div class="empty">Carregando jogos para gerenciamento...</div>
+      </div>
+    </section>
 
-      <div class="toast" id="toast"></div>
-    </div>
+    <div class="toast" id="toast"></div>
+  </div>
 
-    <script src="/static/api/js/app.js" defer></script>
-    <script src="/static/js/app.js" defer></script>
-  </body>
+  <script src="/static/api/js/app.js" defer></script>
+
+  <script src="/static/js/app.js" defer></script>
+</body>
+
 </html>

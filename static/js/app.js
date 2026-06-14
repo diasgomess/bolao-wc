@@ -113,10 +113,41 @@ function statusPartida(p) {
   if (p.status === "FINISHED") {
     return { label: `Finalizado — ${p.gols_casa} × ${p.gols_fora}`, cls: "status-finished", aberto: false };
   }
+  if (p.status === "IN_PLAY") {
+    return { label: "AO VIVO", cls: "status-live", aberto: false };
+  }
   if (p.palpite_expirado) {
     return { label: "Inscrições Encerradas", cls: "status-closed", aberto: false };
   }
   return { label: "Palpites Abertos", cls: "status-open", aberto: true };
+}
+
+function atualizarSelectCampeonatos() {
+  const select = document.getElementById("selectCampeonato");
+  if (!select) return;
+
+  const valorAtual = select.value || "TODOS";
+  const campeonatos = new Set();
+
+  // Coleta dinamicamente os campeonatos que existem nas partidas do cache
+  partidasCache.forEach(p => {
+    if (p.campeonato) {
+      campeonatos.add(p.campeonato);
+    }
+  });
+
+  // Fallback: se nenhuma partida tiver o campo preenchido, define Copa do Mundo
+  if (campeonatos.size === 0) {
+    campeonatos.add("Copa do Mundo");
+  }
+
+  let htmlOptions = '<option value="TODOS">Todos os Campeonatos</option>';
+  campeonatos.forEach(camp => {
+    htmlOptions += `<option value="${camp}">${camp}</option>`;
+  });
+
+  select.innerHTML = htmlOptions;
+  select.value = valorAtual; // Mantém o filtro selecionado após o reload
 }
 
 async function carregarPartidas() {
@@ -124,6 +155,8 @@ async function carregarPartidas() {
     // Busca os dados da API uma única vez e alimenta o cache local
     partidasCache = await api("/api/partidas");
     await carregarPalpitesDoUsuario();
+
+    atualizarSelectCampeonatos();
 
     // Dispara a renderização visual dos cards
     renderizarPartidas();
@@ -134,27 +167,45 @@ async function carregarPartidas() {
 
 function renderizarPartidas() {
   const listaContainer = document.getElementById("matchesList");
-  
+
   const inputFiltro = document.getElementById("inputFiltroSelecao");
   const termoBusca = inputFiltro ? inputFiltro.value.toLowerCase().trim() : "";
+
+  const selectCampeonato = document.getElementById("selectCampeonato");
+  const campeonatoSelecionado = selectCampeonato ? selectCampeonato.value : "TODOS";
 
   if (!partidasCache || !partidasCache.length) {
     listaContainer.innerHTML = '<div class="empty">Nenhum jogo disponível no momento.</div>';
     return;
   }
 
-  // 1. Filtrar as partidas na memória
-  const partidasFiltradas = partidasCache.filter(partida => 
-    partida.time_casa.toLowerCase().includes(termoBusca) || 
-    partida.time_fora.toLowerCase().includes(termoBusca)
-  );
+  // 1. Filtrar partidas de acordo com a busca e o campeonato selecionado
+  const partidasFiltradas = partidasCache.filter(partida => {
+    const correspondeTexto = partida.time_casa.toLowerCase().includes(termoBusca) || 
+                             partida.time_fora.toLowerCase().includes(termoBusca);
+    
+    const campPartida = partida.campeonato || "Copa do Mundo";
+    const correspondeCampeonato = campeonatoSelecionado === "TODOS" || 
+                                  campPartida.toLowerCase() === campeonatoSelecionado.toLowerCase();
+
+    return correspondeTexto && correspondeCampeonato;
+  });
 
   if (!partidasFiltradas.length) {
     listaContainer.innerHTML = '<div class="empty">Nenhuma partida encontrada para esta seleção.</div>';
     return;
   }
 
-  // 2. Agrupar por dia
+  // 2. Identificar partidas que acontecem HOJE
+  const hoje = new Date();
+  const partidasDeHoje = partidasFiltradas.filter(partida => {
+    const dataJogo = new Date(partida.data_hora_jogo);
+    return dataJogo.getDate() === hoje.getDate() &&
+           dataJogo.getMonth() === hoje.getMonth() &&
+           dataJogo.getFullYear() === hoje.getFullYear();
+  });
+
+  // 3. Agrupar todas as partidas por dia para a listagem normal
   const gruposPorData = {};
   partidasFiltradas.forEach(partida => {
     const dataObjeto = new Date(partida.data_hora_jogo);
@@ -172,50 +223,54 @@ function renderizarPartidas() {
     gruposPorData[dataFormatada].push(partida);
   });
 
-  // 3. Construir o HTML
-  let htmlFinal = "";
+  // 4. Função interna auxiliar para gerar o HTML do Card (Evita repetição de código)
+  const gerarCardHTML = (partida) => {
+    const palpiteSalvo = palpitesDoUsuario.find(p => p.partida_id === partida.id);
+    const jaPalpitou = !!palpiteSalvo;
+    const golsCasaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_casa : "";
+    const golsForaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_fora : "";
 
-  for (const dataGrupo in gruposPorData) {
-    htmlFinal += `
-      <div class="date-group-header" style="margin: 2rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
-        <span></span> ${dataGrupo}
-      </div>
-    `;
+    const bloqueioTotal = partida.palpite_expirado || partida.status === "FINISHED" || partida.status === "IN_PLAY";
+    const inputsDesabilitados = (jaPalpitou || bloqueioTotal) ? 'disabled' : '';
 
-    htmlFinal += gruposPorData[dataGrupo].map(partida => {
-      const palpiteSalvo = palpitesDoUsuario.find(p => p.partida_id === partida.id);
-      const jaPalpitou = !!palpiteSalvo;
-      const golsCasaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_casa : "";
-      const golsForaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_fora : "";
-      
-      const bloqueioTotal = partida.palpite_expirado || partida.status === "FINISHED";
-      const inputsDesabilitados = (jaPalpitou || bloqueioTotal) ? 'disabled' : '';
+    const horarioJogo = new Date(partida.data_hora_jogo).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-      const horarioJogo = new Date(partida.data_hora_jogo).toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+    let statusLabel = "Aberto";
+    let statusBg = "#238636";
 
-      const estiloCard = jaPalpitou 
-        ? "background: #161b22; border: 1px solid #238636; border-left: 5px solid #238636; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;"
-        : "background: #161b22; border: 1px solid #30363d; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;";
+    if (partida.status === "FINISHED") {
+      statusLabel = "Finalizado";
+      statusBg = "#21262d"; 
+    } else if (partida.status === "IN_PLAY") {
+      statusLabel = "AO VIVO";
+      statusBg = "#da3637"; 
+    } else if (partida.palpite_expirado) {
+      statusLabel = "Encerrado";
+      statusBg = "#30363d";
+    }
 
-      return `
-        <article class="match-card" data-id="${partida.id}" style="${estiloCard}">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="font-size: 0.85rem; color: #8b949e; font-weight: 500;">${horarioJogo} | ID: ${partida.id}</span>
-            <span class="status-tag" style="padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: ${partida.status === 'FINISHED' ? '#21262d' : '#238636'}; color: #fff;">
-              ${partida.status}
-            </span>
+    const estiloCard = jaPalpitou
+      ? "background: #161b22; border: 1px solid #238636; border-left: 5px solid #238636; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;"
+      : "background: #161b22; border: 1px solid #30363d; padding: 15px; margin-bottom: 15px; border-radius: 8px; transition: all 0.2s;";
+
+    return `
+      <article class="match-card" data-id="${partida.id}" style="${estiloCard}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <span style="font-size: 0.85rem; color: #8b949e; font-weight: 500;">${horarioJogo} | ID: ${partida.id}</span>
+          <span class="status-tag" style="padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: ${statusBg}; color: #fff;">
+            ${statusLabel}
+          </span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 5px;">
+          <div style="font-weight: bold; font-size: 1rem; width: 38%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">
+            ${partida.time_casa}
           </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <div style="font-weight: bold; font-size: 1.1rem; width: 42%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${partida.time_casa}</div>
-            <div style="width: 16%; text-align: center; color: #39ff14; font-weight: bold; font-size: 0.9rem; padding: 2px 0;">VS</div>
-            <div style="font-weight: bold; font-size: 1.1rem; width: 42%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${partida.time_fora}</div>
-          </div>
-
-          <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px;">
+          
+          <div style="width: 24%; display: flex; justify-content: center; align-items: center; gap: 6px; min-width: 110px;">
             <input 
               type="number" 
               min="0" 
@@ -223,9 +278,10 @@ function renderizarPartidas() {
               value="${golsCasaPalpite}" 
               data-partida="${partida.id}"
               ${inputsDesabilitados} 
-              style="width: 55px; text-align: center; padding: 6px; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.05rem;"
+              placeholder="-"
+              style="width: 46px; height: 42px; text-align: center; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.1rem; outline: none;"
             />
-            <span style="color: #8b949e; font-weight: bold;">×</span>
+            <span style="color: #8b949e; font-weight: bold; font-size: 1rem;">×</span>
             <input 
               type="number" 
               min="0" 
@@ -233,44 +289,91 @@ function renderizarPartidas() {
               value="${golsForaPalpite}" 
               data-partida="${partida.id}"
               ${inputsDesabilitados} 
-              style="width: 55px; text-align: center; padding: 6px; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.05rem;"
+              placeholder="-"
+              style="width: 46px; height: 42px; text-align: center; background: #0b0e14; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'}; color: white; border-radius: 6px; font-weight: bold; font-size: 1.1rem; outline: none;"
             />
+          </div>
 
-            ${bloqueioTotal ? 
-              `<button class="btn" disabled style="opacity: 0.5; padding: 6px 12px; font-size: 0.9rem; margin-left: 5px;">Bloqueado</button>` : 
-              (jaPalpitou ? `
+          <div style="font-weight: bold; font-size: 1rem; width: 38%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">
+            ${partida.time_fora}
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px; width: 100%;">
+          ${bloqueioTotal ?
+          `<button class="btn" disabled style="opacity: 0.5; padding: 6px 16px; font-size: 0.85rem; background: #21262d; color: #8b949e; border: 1px solid #30363d; border-radius: 6px; width: 100%; max-width: 180px;">
+              ${partida.status === 'IN_PLAY' ? '🔒 Ao Vivo' : '🔒 Bloqueado'}
+             </button>` :
+          (jaPalpitou ? `
+              <div style="display: flex; justify-content: center; width: 100%;">
                 <button type="button" class="btn btn-editar" 
-                         style="padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #21262d; color: #fff; border: 1px solid #30363d; margin-left: 5px;">
-                  Editar
+                         style="padding: 6px 16px; font-size: 0.85rem; border-radius: 6px; font-weight: 600; cursor: pointer; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; width: 100%; max-width: 180px;">
+                  Editar Palpite
                  </button>
                 <button type="button" class="btn btn-primary btn-salvar" 
-                         style="display:none; padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; margin-left: 5px;" 
+                         style="display:none; padding: 6px 16px; font-size: 0.85rem; border-radius: 6px; font-weight: 600; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; width: 100%; max-width: 180px;" 
                          onclick="salvarPalpiteFront(${partida.id}, this)">
                   Atualizar
                  </button>
-              ` : `
-                <button type="button" class="btn btn-primary btn-salvar" 
-                         style="padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: 500; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; margin-left: 5px;" 
-                         onclick="salvarPalpiteFront(${partida.id}, this)">
-                  Salvar
-                 </button>
-              `)
-            }
-          </div>
+              </div>
+            ` : `
+              <button type="button" class="btn btn-primary btn-salvar" 
+                       style="padding: 6px 16px; font-size: 0.85rem; border-radius: 6px; font-weight: 600; cursor: pointer; background: #238636; color: #fff; border: 1px solid transparent; width: 100%; max-width: 180px;" 
+                       onclick="salvarPalpiteFront(${partida.id}, this)">
+                Salvar Palpite
+               </button>
+            `)
+        }
+        </div>
 
-          ${partida.status === "FINISHED" ? `
-            <div style="text-align: center; margin-top: 12px; color: #8b949e; font-size: 0.85rem; border-top: 1px dashed #30363d; padding-top: 8px;">
-              Resultado Oficial: <strong style="color: #fff; font-size: 0.95rem;">${partida.gols_casa} × ${partida.gols_fora}</strong>
-            </div>
-          ` : ''}
-        </article>
-      `;
-    }).join("");
+        ${partida.status === "FINISHED" ? `
+          <div style="text-align: center; margin-top: 14px; color: #8b949e; font-size: 0.85rem; border-top: 1px dashed #30363d; padding-top: 8px;">
+            Resultado Oficial: <strong style="color: #39ff14; font-size: 0.95rem;">${partida.gols_casa} × ${partida.gols_fora}</strong>
+          </div>
+        ` : ''}
+      </article>
+    `;
+  };
+
+  // 5. Construir o HTML final
+  let htmlFinal = `
+    <style>
+      input.gols-casa::-webkit-outer-spin-button,
+      input.gols-casa::-webkit-inner-spin-button,
+      input.gols-fora::-webkit-outer-spin-button,
+      input.gols-fora::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input.gols-casa, input.gols-fora {
+        -moz-appearance: textfield;
+      }
+    </style>
+  `;
+
+  // SEÇÃO NOVISSIMA: Se houver jogos hoje, renderiza no topo em destaque
+  if (partidasDeHoje.length > 0) {
+    htmlFinal += `
+      <div class="date-group-header" style="margin: 1rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(57, 255, 20, 0.2);">
+          JOGOS DE HOJE
+      </div>
+    `;
+    htmlFinal += partidasDeHoje.map(partida => gerarCardHTML(partida)).join("");
+  }
+
+  // Listagem cronológica padrão abaixo
+  for (const dataGrupo in gruposPorData) {
+    htmlFinal += `
+      <div class="date-group-header" style="margin: 2rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+        <span></span> ${dataGrupo}
+      </div>
+    `;
+    htmlFinal += gruposPorData[dataGrupo].map(partida => gerarCardHTML(partida)).join("");
   }
 
   listaContainer.innerHTML = htmlFinal;
 
-  // Ouvinte do botão editar funcionando perfeitamente independente da árvore DOM anterior
+  // Ouvinte do botão editar mapeando os inputs perfeitamente em qualquer seção
   listaContainer.querySelectorAll(".btn-editar").forEach(btn => {
     btn.addEventListener("click", () => {
       const card = btn.closest(".match-card");
@@ -299,8 +402,8 @@ async function salvarPalpiteFront(partidaId, botao) {
   const payload = {
     usuario_id: usuarioAtual.id,
     partida_id: partidaId,
-    gols_casa: Number(golsCasaVal),
-    gols_fora: Number(golsForaVal)
+    palpite_gols_casa: Number(golsCasaVal),
+    palpite_gols_fora: Number(golsForaVal)
   };
 
   try {
@@ -339,7 +442,7 @@ async function carregarMeusPalpitesExclusivos() {
     await carregarPalpitesDoUsuario();
 
     if (!palpitesDoUsuario.length) {
-      lista.innerHTML = '<div class="empty">Você ainda não realizou nenhum palpite. Vá na aba <strong>Jogos da Copa</strong> e faça as suas apostas!</div>';
+      lista.innerHTML = '<div class="empty">Você ainda não realizou nenhum palpite. Vá na aba <strong>Jogos</strong> e faça as suas apostas!</div>';
       return;
     }
 
@@ -603,6 +706,7 @@ $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExc
 $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
 $("#btnAtualizarAdmin")?.addEventListener("click", carregarPainelAdmin);
 $("#inputFiltroSelecao").addEventListener("input", renderizarPartidas);
+$("#selectCampeonato")?.addEventListener("change", renderizarPartidas);
 
 $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
   const timeCasa = $("#adminNewTimeCasa").value.trim();

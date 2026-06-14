@@ -14,9 +14,9 @@ body {
 /* Ajuste específico para os cards de partida */
 .match-card {
   width: 100%;
-  max-width: 600px;
-  margin: 0 auto 1rem auto;
-  padding: 1rem;
+  max-width: 750px; /* Aumentado de 600px para 750px para acompanhar os filtros */
+  margin: 0 auto 1.25rem auto;
+  padding: 1.5rem; /* Mais espaço interno para respirar */
 }
 
 :root {
@@ -45,6 +45,8 @@ body {
   margin: 0;
   padding: 0;
 }
+
+
 
 body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -327,9 +329,63 @@ input:disabled {
 }
 
 .match-teams {
-  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem; /* Mais espaço entre os nomes e o placar */
+  font-size: 1.25rem; /* Aumentado de 1.1rem para 1.25rem */
   font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* Deixar as bandeiras ligeiramente maiores para acompanhar */
+.team-flag {
+  width: 32px; /* Aumentado para manter a proporção visual */
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 8px rgba(0,0,0,0.3);
+}
+
+/* Inputs do Placar com mais presença */
+.score-input {
+  width: 54px; /* Ligeiramente mais largo */
+  height: 46px; /* Mais alto e robusto */
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   color: var(--text);
+  text-align: center;
+  font-size: 1.3rem; /* Fonte do placar bem visível */
+  font-weight: 800;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Brilho verde ao focar para palpitar */
+.score-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.25);
+}
+
+/* Divisor "X" entre os placares */
+.score-vs {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0 0.25rem;
+}
+
+/* Rodapé do card (Data e Estado do jogo) */
+.match-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem; /* Um pouco maior para leitura rápida */
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 0.8rem;
+  margin-top: 0.5rem;
 }
 
 .match-meta {
@@ -518,4 +574,81 @@ tr.leader td:nth-child(2) {
   .match-teams {
     font-size: 1rem;
   }
+}
+
+/* ==========================================
+   ESTILIZAÇÃO DO CONTAINER DE FILTROS (VERSÃO MASTER)
+   ========================================== */
+
+.filters-container {
+  display: flex;
+  gap: 20px; /* Aumentado o espaço entre as colunas */
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  padding: 24px; /* Aumentado o preenchimento interno para o card ficar mais robusto */
+  margin-bottom: 2.5rem; /* Mais espaço antes de começar a lista de jogos */
+  align-items: flex-end; 
+  flex-wrap: wrap;
+  width: 100%;
+  box-shadow: var(--shadow); /* Adiciona a sombra marcante do seu app */
+}
+
+/* Grupos de filtro (Label + Input) */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Mais espaço entre o emoji/texto e a caixa */
+}
+
+/* Distribuição de tamanho mais generosa */
+.filter-group.select-group {
+  flex: 1.2;
+  min-width: 220px; /* Aumentado a largura mínima do select */
+}
+
+.filter-group.search-group {
+  flex: 2.5;
+  min-width: 300px; /* Aumentado a largura mínima da busca */
+}
+
+.filter-group.action-group {
+  flex: 0 0 auto;
+}
+
+/* Texto explicativo acima dos campos */
+.filter-group label {
+  font-size: 0.85rem; /* Fonte ligeiramente maior e mais legível */
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Inputs e Selects maiores */
+.filter-group select,
+.filter-group input {
+  width: 100%;
+  height: 48px; /* Aumentado de 42px para 48px para dar mais imponência */
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0 16px; /* Mais espaço interno para o texto digitado */
+  font-size: 1rem; /* Texto interno maior */
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Botão de atualizar acompanhando o novo tamanho */
+.filter-group .btn {
+  height: 48px; /* Casando perfeitamente com os 48px dos inputs */
+  padding: 0 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
