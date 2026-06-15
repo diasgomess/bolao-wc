@@ -388,7 +388,7 @@ async function salvarPalpiteFront(partidaId, botao) {
   // 1. Valida se o usuário está logado
   if (!exigirLogin()) return;
 
-  // 2. Encontra o card e captura os valores dos inputs
+  // 2. Encontra o card e captura os valores dos inputs de placar
   const card = botao.closest(".match-card");
   const golsCasaVal = card.querySelector(".gols-casa").value;
   const golsForaVal = card.querySelector(".gols-fora").value;
@@ -398,12 +398,12 @@ async function salvarPalpiteFront(partidaId, botao) {
     return;
   }
 
-  // ✅ CORREÇÃO: Chaves alteradas para o padrão esperado pelo Pydantic do FastAPI
+  // 📦 O PAYLOAD DEVE CASAR COM O SCHEMA DO FASTAPI (gols_casa e gols_fora)
   const payload = {
     usuario_id: usuarioAtual.id,
     partida_id: partidaId,
-    palpite_gols_casa: Number(golsCasaVal),
-    palpite_gols_fora: Number(golsForaVal)
+    gols_casa: Number(golsCasaVal),
+    gols_fora: Number(golsForaVal)
   };
 
   try {
@@ -411,22 +411,23 @@ async function salvarPalpiteFront(partidaId, botao) {
     const textoOriginal = botao.textContent;
     botao.textContent = "...";
 
-    // 3. Envia para a API
+    // 🌐 Como o seu Python usa .upsert, disparar POST atualiza automaticamente se já existir!
     await api("/api/palpites", {
       method: "POST",
       body: JSON.stringify(payload),
     });
 
-    showToast("Palpite salvo com sucesso!");
+    showToast("Palpite registrado com sucesso!");
 
-    // 4. Recarrega as partidas para atualizar o cache e travar os campos com o botão "Editar"
+    // 4. Recarrega as partidas para atualizar o cache local e re-bloquear os inputs
     await carregarPartidas();
 
   } catch (err) {
     showToast(err.message, "error");
-    // Se der erro, devolve o botão ao estado funcional
     botao.disabled = false;
-    botao.textContent = "Atualizar";
+    // Descobre se era uma edição ou inserção nova para restaurar o texto do botão
+    const jaPalpitou = palpitesDoUsuario.some(p => p.partida_id === partidaId);
+    botao.textContent = jaPalpitou ? "Atualizar" : "Salvar";
   }
 }
 
