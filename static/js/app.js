@@ -3,6 +3,7 @@ const STORAGE_KEY = "bolaofort_usuario";
 let usuarioAtual = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
 let palpitesDoUsuario = []; // Armazena em memória os palpites do usuário logado
 let partidasCache = [];
+let carouselIndex = 0;
 
 const $ = (sel) => document.querySelector(sel);
 const toast = $("#toast");
@@ -155,11 +156,9 @@ async function carregarPartidas() {
     // Busca os dados da API uma única vez e alimenta o cache local
     partidasCache = await api("/api/partidas");
     await carregarPalpitesDoUsuario();
-
     atualizarSelectCampeonatos();
-
-    // Dispara a renderização visual dos cards
     renderizarPartidas();
+    renderizarCarrossel();
   } catch (err) {
     $("#matchesList").innerHTML = `<div class="empty">Erro ao carregar jogos: ${err.message}</div>`;
   }
@@ -181,12 +180,12 @@ function renderizarPartidas() {
 
   // 1. Filtrar partidas de acordo com a busca e o campeonato selecionado
   const partidasFiltradas = partidasCache.filter(partida => {
-    const correspondeTexto = partida.time_casa.toLowerCase().includes(termoBusca) || 
-                             partida.time_fora.toLowerCase().includes(termoBusca);
-    
+    const correspondeTexto = partida.time_casa.toLowerCase().includes(termoBusca) ||
+      partida.time_fora.toLowerCase().includes(termoBusca);
+
     const campPartida = partida.campeonato || "Copa do Mundo";
-    const correspondeCampeonato = campeonatoSelecionado === "TODOS" || 
-                                  campPartida.toLowerCase() === campeonatoSelecionado.toLowerCase();
+    const correspondeCampeonato = campeonatoSelecionado === "TODOS" ||
+      campPartida.toLowerCase() === campeonatoSelecionado.toLowerCase();
 
     return correspondeTexto && correspondeCampeonato;
   });
@@ -201,8 +200,8 @@ function renderizarPartidas() {
   const partidasDeHoje = partidasFiltradas.filter(partida => {
     const dataJogo = new Date(partida.data_hora_jogo);
     return dataJogo.getDate() === hoje.getDate() &&
-           dataJogo.getMonth() === hoje.getMonth() &&
-           dataJogo.getFullYear() === hoje.getFullYear();
+      dataJogo.getMonth() === hoje.getMonth() &&
+      dataJogo.getFullYear() === hoje.getFullYear();
   });
 
   // 3. Agrupar todas as partidas por dia para a listagem normal
@@ -243,10 +242,10 @@ function renderizarPartidas() {
 
     if (partida.status === "FINISHED") {
       statusLabel = "Finalizado";
-      statusBg = "#21262d"; 
+      statusBg = "#21262d";
     } else if (partida.status === "IN_PLAY") {
       statusLabel = "AO VIVO";
-      statusBg = "#da3637"; 
+      statusBg = "#da3637";
     } else if (partida.palpite_expirado) {
       statusLabel = "Encerrado";
       statusBg = "#30363d";
@@ -301,10 +300,10 @@ function renderizarPartidas() {
 
         <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px; width: 100%;">
           ${bloqueioTotal ?
-          `<button class="btn" disabled style="opacity: 0.5; padding: 6px 16px; font-size: 0.85rem; background: #21262d; color: #8b949e; border: 1px solid #30363d; border-radius: 6px; width: 100%; max-width: 180px;">
+        `<button class="btn" disabled style="opacity: 0.5; padding: 6px 16px; font-size: 0.85rem; background: #21262d; color: #8b949e; border: 1px solid #30363d; border-radius: 6px; width: 100%; max-width: 180px;">
               ${partida.status === 'IN_PLAY' ? '🔒 Ao Vivo' : '🔒 Bloqueado'}
              </button>` :
-          (jaPalpitou ? `
+        (jaPalpitou ? `
               <div style="display: flex; justify-content: center; width: 100%;">
                 <button type="button" class="btn btn-editar" 
                          style="padding: 6px 16px; font-size: 0.85rem; border-radius: 6px; font-weight: 600; cursor: pointer; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; width: 100%; max-width: 180px;">
@@ -323,7 +322,7 @@ function renderizarPartidas() {
                 Salvar Palpite
                </button>
             `)
-        }
+      }
         </div>
 
         ${partida.status === "FINISHED" ? `
@@ -382,6 +381,213 @@ function renderizarPartidas() {
       card.querySelector(".btn-salvar").style.display = "inline-block";
     });
   });
+}
+
+function renderizarCarrossel() {
+  const hoje = new Date();
+
+  // Gera os 3 dias (hoje, amanhã, depois)
+  const dias = [0, 1, 2].map(offset => {
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() + offset);
+    return d;
+  });
+
+  // Labels legíveis
+  const labels = ["Hoje", "Amanhã", "Depois de amanhã"];
+
+  dias.forEach((dia, i) => {
+    // Label do dia com data formatada
+    const labelEl = document.getElementById(`labelDia${i}`);
+    if (labelEl) {
+      const dataStr = dia.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+      labelEl.textContent = `${labels[i]} — ${dataStr.charAt(0).toUpperCase() + dataStr.slice(1)}`;
+    }
+
+    // Filtra partidas do dia
+    const cardsEl = document.getElementById(`carouselDia${i}`);
+    if (!cardsEl) return;
+
+    const partidas = partidasCache.filter(p => {
+      const dp = new Date(p.data_hora_jogo);
+      return dp.getDate() === dia.getDate() &&
+        dp.getMonth() === dia.getMonth() &&
+        dp.getFullYear() === dia.getFullYear();
+    });
+
+    if (!partidas.length) {
+      cardsEl.innerHTML = `<div class="carousel-empty">Nenhum jogo</div>`;
+      return;
+    }
+
+    cardsEl.innerHTML = partidas.map(p => {
+      const horario = new Date(p.data_hora_jogo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
+      const temPalpite = !!palpiteSalvo;
+      const isLive = p.status === "IN_PLAY";
+      const isFinished = p.status === "FINISHED";
+      const bloqueado = isLive || isFinished || p.palpite_expirado;
+
+      // Badge de status
+      let statusHtml = "";
+      if (isLive) {
+        statusHtml = `<span class="carousel-match-status" style="background:rgba(255,82,82,0.15);color:var(--danger);border:1px solid rgba(255,82,82,0.4);">● AO VIVO</span>`;
+      } else if (isFinished) {
+        statusHtml = `<span class="carousel-match-status" style="background:rgba(139,148,158,0.1);color:var(--text-muted);border:1px solid var(--border);">${p.gols_casa} × ${p.gols_fora}</span>`;
+      } else if (temPalpite) {
+        statusHtml = `<span class="carousel-match-status" style="background:rgba(57,255,20,0.1);color:var(--accent);border:1px solid rgba(57,255,20,0.35);">✓ Palpitado</span>`;
+      } else {
+        statusHtml = `<span class="carousel-match-status" style="background:transparent;color:var(--text-muted);border:1px solid var(--border);">Aberto</span>`;
+      }
+
+      // Seção expandida
+      const golsCasa = temPalpite ? palpiteSalvo.palpite_gols_casa : "";
+      const golsFora = temPalpite ? palpiteSalvo.palpite_gols_fora : "";
+      const inputDisabled = bloqueado ? "disabled" : "";
+
+      let botaoHtml = "";
+      if (bloqueado) {
+        botaoHtml = `<button class="carousel-btn-salvar" disabled style="background:#21262d;color:#8b949e;border:1px solid var(--border);">🔒 ${isLive ? "Ao Vivo" : "Encerrado"}</button>`;
+      } else if (temPalpite) {
+        botaoHtml = `
+      <button class="carousel-btn-salvar carousel-btn-editar" style="background:#21262d;color:#c9d1d9;border:1px solid var(--border);">Editar</button>
+      <button class="carousel-btn-salvar carousel-btn-confirmar" style="display:none;background:#238636;color:#fff;border:none;" data-id="${p.id}">Confirmar</button>
+    `;
+      } else {
+        botaoHtml = `<button class="carousel-btn-salvar carousel-btn-confirmar" style="background:#238636;color:#fff;border:none;" data-id="${p.id}">Salvar Palpite</button>`;
+      }
+
+      const cardClass = isLive ? "carousel-match-card live" : temPalpite ? "carousel-match-card has-bet" : "carousel-match-card";
+
+      return `
+    <div class="${cardClass}" data-partida-id="${p.id}">
+      <div class="carousel-match-time">${horario}</div>
+      <div class="carousel-match-teams">
+        ${p.time_casa}<br>
+        <span class="carousel-match-vs">vs</span><br>
+        ${p.time_fora}
+      </div>
+      ${statusHtml}
+
+      <div class="carousel-expand">
+        <div class="carousel-expand-inputs">
+          <input type="number" min="0" class="carousel-score-input carousel-gols-casa" value="${golsCasa}" placeholder="-" ${inputDisabled} />
+          <span style="color:var(--text-muted);font-weight:700;">×</span>
+          <input type="number" min="0" class="carousel-score-input carousel-gols-fora" value="${golsFora}" placeholder="-" ${inputDisabled} />
+        </div>
+        ${botaoHtml}
+      </div>
+    </div>
+  `;
+    }).join("");
+
+  });
+
+  // Atualiza os dots
+  atualizarDots();
+  bindCarrosselEvents();
+}
+
+function bindCarrosselEvents() {
+  document.querySelectorAll(".carousel-match-card").forEach(card => {
+
+    // Clique no card → expande/recolhe
+    card.addEventListener("click", (e) => {
+      // Não recolhe se clicou num input ou botão
+      if (e.target.closest("input, button")) return;
+
+      const jaExpandido = card.classList.contains("expanded");
+      // Recolhe todos
+      document.querySelectorAll(".carousel-match-card.expanded")
+        .forEach(c => c.classList.remove("expanded"));
+      // Abre o clicado (toggle)
+      if (!jaExpandido) card.classList.add("expanded");
+    });
+
+    // Botão "Editar" → habilita inputs e troca botão
+    const btnEditar = card.querySelector(".carousel-btn-editar");
+    if (btnEditar) {
+      btnEditar.addEventListener("click", (e) => {
+        e.stopPropagation();
+        card.querySelectorAll(".carousel-score-input").forEach(i => i.disabled = false);
+        btnEditar.style.display = "none";
+        card.querySelector(".carousel-btn-confirmar").style.display = "block";
+      });
+    }
+
+    // Botão "Salvar/Confirmar" → chama a API
+    const btnConfirmar = card.querySelector(".carousel-btn-confirmar");
+    if (btnConfirmar) {
+      btnConfirmar.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!exigirLogin()) return;
+
+        const partidaId = Number(btnConfirmar.dataset.id);
+        const golsCasa = card.querySelector(".carousel-gols-casa").value;
+        const golsFora = card.querySelector(".carousel-gols-fora").value;
+
+        if (golsCasa === "" || golsFora === "") {
+          showToast("Preencha os dois placares.", "error");
+          return;
+        }
+
+        try {
+          btnConfirmar.disabled = true;
+          btnConfirmar.textContent = "...";
+
+          await api("/api/palpites", {
+            method: "POST",
+            body: JSON.stringify({
+              usuario_id: usuarioAtual.id,
+              partida_id: partidaId,
+              gols_casa: Number(golsCasa),
+              gols_fora: Number(golsFora)
+            })
+          });
+
+          showToast("Palpite salvo!");
+          await carregarPartidas(); // re-renderiza tudo com dados frescos
+
+        } catch (err) {
+          showToast(err.message, "error");
+          btnConfirmar.disabled = false;
+          btnConfirmar.textContent = "Confirmar";
+        }
+      });
+    }
+  });
+}
+
+function moverCarrossel(direcao) {
+  carouselIndex = (carouselIndex + direcao + 3) % 3;
+  const track = document.getElementById("carouselTrack");
+  if (track) track.style.transform = `translateX(-${carouselIndex * 100}%)`;
+  atualizarDots();
+}
+
+function atualizarDots() {
+  const dotsEl = document.getElementById("carouselDots");
+  if (!dotsEl) return;
+
+  // Cria os dots na primeira chamada
+  if (!dotsEl.children.length) {
+    dotsEl.innerHTML = [0, 1, 2].map(i =>
+      `<span class="carousel-dot${i === carouselIndex ? " active" : ""}" data-i="${i}"></span>`
+    ).join("");
+    dotsEl.querySelectorAll(".carousel-dot").forEach(dot => {
+      dot.addEventListener("click", () => {
+        carouselIndex = Number(dot.dataset.i);
+        const track = document.getElementById("carouselTrack");
+        if (track) track.style.transform = `translateX(-${carouselIndex * 100}%)`;
+        atualizarDots();
+      });
+    });
+  } else {
+    // Só atualiza a classe ativa
+    dotsEl.querySelectorAll(".carousel-dot").forEach((dot, i) => {
+      dot.classList.toggle("active", i === carouselIndex);
+    });
+  }
 }
 
 async function salvarPalpiteFront(partidaId, botao) {
@@ -702,12 +908,14 @@ $("#inputCsv").addEventListener("change", async (e) => {
   }
 });
 
-$("#btnAtualizarJogos").addEventListener("click", carregarPartidas);
+$("#btnAtualizarJogos")?.addEventListener("click", carregarPartidas);
 $("#btnAtualizarMeusPalpites").addEventListener("click", carregarMeusPalpitesExclusivos);
 $("#btnAtualizarRanking").addEventListener("click", carregarRanking);
 $("#btnAtualizarAdmin")?.addEventListener("click", carregarPainelAdmin);
-$("#inputFiltroSelecao").addEventListener("input", renderizarPartidas);
+$("#inputFiltroSelecao")?.addEventListener("input", renderizarPartidas);
 $("#selectCampeonato")?.addEventListener("change", renderizarPartidas);
+document.getElementById("carouselPrev")?.addEventListener("click", () => moverCarrossel(-1));
+document.getElementById("carouselNext")?.addEventListener("click", () => moverCarrossel(1));
 
 $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
   const timeCasa = $("#adminNewTimeCasa").value.trim();
@@ -750,9 +958,10 @@ $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
   }
 });
 
-// Inicialização síncrona/assíncrona sequencial
 async function init() {
   await atualizarBarraUsuario();
   await carregarUsuarios();
+  // Carrega partidas em background sem bloquear o init se der erro
+  carregarPartidas().catch(err => console.warn("Carrossel: erro ao pré-carregar partidas", err));
 }
 init();

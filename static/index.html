@@ -77,26 +77,36 @@
 
     <section class="panel" id="panel-jogos">
 
-      <div class="filters-container">
-
-        <div class="filter-group select-group">
-          <label for="selectCampeonato">Campeonato</label>
-          <select id="selectCampeonato">
-            <option value="TODOS">Todos os Campeonatos</option>
-          </select>
+      <!-- CARROSSEL DE JOGOS PRÓXIMOS -->
+      <div class="carousel-wrapper">
+        <div class="carousel-header">
+          <h2 class="carousel-title">⚡ Próximos Jogos</h2>
+          <div class="carousel-nav">
+            <button class="carousel-btn" id="carouselPrev">‹</button>
+            <div class="carousel-dots" id="carouselDots"></div>
+            <button class="carousel-btn" id="carouselNext">›</button>
+          </div>
         </div>
 
-        <div class="filter-group search-group">
-          <label for="inputFiltroSelecao">Procurar equipe</label>
-          <input type="text" id="inputFiltroSelecao" placeholder="Buscar país ou clube..." autocomplete="off" />
+        <div class="carousel-track-container">
+          <div class="carousel-track" id="carouselTrack">
+            <!-- Slide 0: Hoje -->
+            <div class="carousel-slide" data-day="0">
+              <div class="carousel-day-label" id="labelDia0"></div>
+              <div class="carousel-cards" id="carouselDia0"></div>
+            </div>
+            <!-- Slide 1: Amanhã -->
+            <div class="carousel-slide" data-day="1">
+              <div class="carousel-day-label" id="labelDia1"></div>
+              <div class="carousel-cards" id="carouselDia1"></div>
+            </div>
+            <!-- Slide 2: Depois de amanhã -->
+            <div class="carousel-slide" data-day="2">
+              <div class="carousel-day-label" id="labelDia2"></div>
+              <div class="carousel-cards" id="carouselDia2"></div>
+            </div>
+          </div>
         </div>
-
-        <div class="filter-group action-group">
-          <button class="btn btn-ghost" id="btnAtualizarJogos">
-            Atualizar Jogos
-          </button>
-        </div>
-
       </div>
 
       <div class="matches" id="matchesList">
@@ -196,8 +206,6 @@
 
     <div class="toast" id="toast"></div>
   </div>
-
-  <script src="/static/api/js/app.js" defer></script>
 
   <script src="/static/js/app.js" defer></script>
 </body>

@@ -652,3 +652,260 @@ tr.leader td:nth-child(2) {
   justify-content: center;
   white-space: nowrap;
 }
+
+/* ==========================================
+   CARROSSEL DE PRÓXIMOS JOGOS
+   ========================================== */
+
+.carousel-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.carousel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: var(--glow-green);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.carousel-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.carousel-btn:hover {
+  border-color: var(--purple-dim);
+  color: var(--purple);
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.carousel-dot.active {
+  background: var(--purple);
+  transform: scale(1.3);
+  box-shadow: var(--glow-purple);
+}
+
+.carousel-track-container {
+  overflow: hidden;
+  width: 100%;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.carousel-slide {
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.carousel-day-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Cards dentro do carrossel ficam lado a lado horizontalmente */
+.carousel-cards {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Card compacto para o carrossel */
+.carousel-match-card {
+  flex: 0 0 200px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 0.85rem;
+  text-align: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+
+.carousel-match-card:hover {
+  border-color: rgba(157, 78, 223, 0.45);
+  box-shadow: var(--glow-purple);
+}
+
+.carousel-match-card.has-bet {
+  border-color: rgba(57, 255, 20, 0.4);
+  border-left: 3px solid var(--accent);
+}
+
+.carousel-match-card.live {
+  border-color: rgba(255, 82, 82, 0.5);
+  border-left: 3px solid var(--danger);
+}
+
+.carousel-match-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  font-weight: 500;
+}
+
+.carousel-match-teams {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+  line-height: 1.3;
+}
+
+.carousel-match-vs {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.carousel-match-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.carousel-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+  text-align: center;
+  width: 100%;
+}
+
+.carousel-cards {
+  min-height: 120px; /* garante que o container não colapsa */
+}
+
+/* Expansão inline do card do carrossel */
+.carousel-match-card {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-match-card .carousel-expand {
+  display: block;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.carousel-expand-inputs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0.6rem;
+}
+
+.carousel-score-input {
+  width: 42px;
+  height: 38px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -moz-appearance: textfield;
+}
+
+.carousel-score-input::-webkit-outer-spin-button,
+.carousel-score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.carousel-score-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.2);
+}
+
+.carousel-score-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.carousel-btn-salvar {
+  width: 100%;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.carousel-btn-salvar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
