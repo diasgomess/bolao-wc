@@ -17,5 +17,5 @@ __pycache__/
 # Sistema Operativo
 .DS_Store
 Thumbs.db
-
+.vscode/
 sdd.txt
