@@ -974,7 +974,7 @@ tr.leader td:nth-child(2) {
 
 /* Expansão inline do card do carrossel — oculta por padrão */
 .carousel-match-card .carousel-expand {
-  display: none;
+  display: block;
   width: 100%;
   margin-top: 0.85rem;
   padding-top: 0.75rem;

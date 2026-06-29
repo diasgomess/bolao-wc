@@ -154,11 +154,11 @@ function atualizarSelectCampeonatos() {
 async function carregarPartidas() {
   // Mostra skeletons enquanto carrega
   const matchesList = $("#matchesList");
-  matchesList.innerHTML = `
-    <div class="skeleton skeleton-match"></div>
-    <div class="skeleton skeleton-match"></div>
-    <div class="skeleton skeleton-match"></div>
-  `;
+  $("#matchesList").innerHTML = `
+  <div class="skeleton skeleton-match"></div>
+  <div class="skeleton skeleton-match"></div>
+  <div class="skeleton skeleton-match"></div>
+`;
   try {
     // Busca os dados da API uma única vez e alimenta o cache local
     partidasCache = await api("/api/partidas");
