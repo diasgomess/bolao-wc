@@ -97,24 +97,61 @@ def palpite_dentro_do_prazo(data_hora_jogo: datetime) -> bool:
     return data_hora_jogo - agora > LOCKOUT_ANTECEDENCIA
 
 
+def houve_acerto_classificacao(
+    gols_casa: int,
+    gols_fora: int,
+    palpite_casa: int,
+    palpite_fora: int,
+    mata_mata: bool,
+    vencedor_penaltis: str | None,
+    palpite_penaltis: str | None,
+) -> bool:
+    """
+    Indica se o usuário acertou quem se classifica em um jogo de mata-mata
+    decidido nos pênaltis (placar empatado no tempo normal).
+    Só conta se o usuário também tiver "chamado" o empate no palpite.
+    """
+    return bool(
+        mata_mata
+        and gols_casa == gols_fora
+        and vencedor_penaltis in ("casa", "fora")
+        and palpite_casa == palpite_fora
+        and palpite_penaltis == vencedor_penaltis
+    )
+
+
 def calcular_pontos_palpite(
     gols_casa: int,
     gols_fora: int,
     palpite_casa: int,
     palpite_fora: int,
+    mata_mata: bool = False,
+    vencedor_penaltis: str | None = None,
+    palpite_penaltis: str | None = None,
 ) -> int:
-    """2 pts placar cheio, 1 pt vencedor/empate, 0 pts erro."""
+    """
+    2 pts placar cheio, 1 pt vencedor/empate, 0 pts erro.
+    +1 pt bônus se for mata-mata decidido nos pênaltis e o usuário acertar
+    tanto o empate quanto o time que avança.
+    """
     if gols_casa == palpite_casa and gols_fora == palpite_fora:
-        return 2
-
-    if (
+        pontos = 2
+    elif (
         (gols_casa > gols_fora and palpite_casa > palpite_fora)
         or (gols_casa < gols_fora and palpite_casa < palpite_fora)
         or (gols_casa == gols_fora and palpite_casa == palpite_fora)
     ):
-        return 1
+        pontos = 1
+    else:
+        pontos = 0
 
-    return 0
+    if houve_acerto_classificacao(
+        gols_casa, gols_fora, palpite_casa, palpite_fora,
+        mata_mata, vencedor_penaltis, palpite_penaltis,
+    ):
+        pontos += 1
+
+    return pontos
 
 
 def mapear_status_partida(status_api: str) -> str:
@@ -277,17 +314,21 @@ class PartidaUpdate(BaseModel):
     gols_fora: int | None = None
     status: str | None = None
     data_hora_jogo: str | None = None
+    mata_mata: bool | None = None
+    vencedor_penaltis: str | None = None  # "casa" | "fora"
 
 class PartidaCreate(BaseModel):
     time_casa: str = Field(..., min_length=1, max_length=50)
     time_fora: str = Field(..., min_length=1, max_length=50)
     data_hora_jogo: str  # String em formato ISO 8601
+    mata_mata: bool = False
 
 class PalpiteCreate(BaseModel):
     usuario_id: UUID
     partida_id: int
     gols_casa: int = Field(..., ge=0)
     gols_fora: int = Field(..., ge=0)
+    penaltis: str | None = None  # "casa" | "fora" — quem o usuário acha que avança
 
 
 class PalpiteResponse(BaseModel):
@@ -296,6 +337,7 @@ class PalpiteResponse(BaseModel):
     partida_id: int
     palpite_gols_casa: int
     palpite_gols_fora: int
+    palpite_penaltis: str | None = None
 
 
 class PartidaResponse(BaseModel):
@@ -307,6 +349,8 @@ class PartidaResponse(BaseModel):
     gols_fora: int | None
     status: str
     palpite_expirado: bool
+    mata_mata: bool = False
+    vencedor_penaltis: str | None = None
 
 
 class RankingEntry(BaseModel):
@@ -315,6 +359,7 @@ class RankingEntry(BaseModel):
     pontos_totais: int
     acertos_cheios: int
     acertos_vencedor: int
+    acertos_classificacao: int = 0
 
 
 # -----------------------------------------------------------------------------
@@ -402,7 +447,7 @@ async def listar_partidas() -> list[dict[str, Any]]:
 
     resultado = (
         db.table("partidas")
-        .select("id, time_casa, time_fora, data_hora_jogo, gols_casa, gols_fora, status")
+        .select("id, time_casa, time_fora, data_hora_jogo, gols_casa, gols_fora, status, mata_mata, vencedor_penaltis")
         .order("data_hora_jogo")
         .execute()
     )
@@ -420,6 +465,8 @@ async def listar_partidas() -> list[dict[str, Any]]:
                 "gols_fora": partida["gols_fora"],
                 "status": partida["status"],
                 "palpite_expirado": not palpite_dentro_do_prazo(data_hora_jogo),
+                "mata_mata": partida.get("mata_mata", False),
+                "vencedor_penaltis": partida.get("vencedor_penaltis"),
             }
         )
 
@@ -468,6 +515,12 @@ async def registrar_palpite(payload: PalpiteCreate) -> dict[str, Any]:
             detail="Prazo para palpite encerrado. Envie pelo menos 1 hora antes do jogo.",
         )
 
+    if payload.penaltis is not None and payload.penaltis not in ("casa", "fora"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Campo 'penaltis' deve ser 'casa' ou 'fora'",
+        )
+
     resultado = (
         db.table("palpites")
         .upsert(
@@ -476,6 +529,7 @@ async def registrar_palpite(payload: PalpiteCreate) -> dict[str, Any]:
                 "partida_id": payload.partida_id,
                 "palpite_gols_casa": payload.gols_casa,
                 "palpite_gols_fora": payload.gols_fora,
+                "palpite_penaltis": payload.penaltis,
             },
             on_conflict="usuario_id,partida_id",
         )
@@ -495,6 +549,7 @@ async def registrar_palpite(payload: PalpiteCreate) -> dict[str, Any]:
         "partida_id": palpite["partida_id"],
         "palpite_gols_casa": palpite["palpite_gols_casa"],
         "palpite_gols_fora": palpite["palpite_gols_fora"],
+        "palpite_penaltis": palpite.get("palpite_penaltis"),
     }
 
 @app.get("/api/palpites/usuario/{usuario_id}", response_model=list[PalpiteResponse])
@@ -504,7 +559,7 @@ async def listar_palpites_usuario(usuario_id: UUID) -> list[dict[str, Any]]:
     
     resultado = (
         db.table("palpites")
-        .select("id, usuario_id, partida_id, palpite_gols_casa, palpite_gols_fora")
+        .select("id, usuario_id, partida_id, palpite_gols_casa, palpite_gols_fora, palpite_penaltis")
         .eq("usuario_id", str(usuario_id))
         .execute()
     )
@@ -527,6 +582,7 @@ async def obter_ranking() -> list[dict[str, Any]]:
             "pontos_totais": 0,
             "acertos_cheios": 0,
             "acertos_vencedor": 0,
+            "acertos_classificacao": 0,
         }
         for usuario in usuarios
     }
@@ -534,8 +590,8 @@ async def obter_ranking() -> list[dict[str, Any]]:
     palpites_resp = (
         db.table("palpites")
         .select(
-            "usuario_id, palpite_gols_casa, palpite_gols_fora, "
-            "partidas(gols_casa, gols_fora)"
+            "usuario_id, palpite_gols_casa, palpite_gols_fora, palpite_penaltis, "
+            "partidas(gols_casa, gols_fora, mata_mata, vencedor_penaltis)"
         )
         .execute()
     )
@@ -555,17 +611,31 @@ async def obter_ranking() -> list[dict[str, Any]]:
         if entrada is None:
             continue
 
+        mata_mata = bool(partida.get("mata_mata", False))
+        vencedor_penaltis = partida.get("vencedor_penaltis")
+        palpite_penaltis = palpite.get("palpite_penaltis")
+
         pontos = calcular_pontos_palpite(
             gols_casa,
             gols_fora,
             palpite["palpite_gols_casa"],
             palpite["palpite_gols_fora"],
+            mata_mata,
+            vencedor_penaltis,
+            palpite_penaltis,
         )
         entrada["pontos_totais"] += pontos
-        if pontos == 2:
+        if pontos >= 2 and gols_casa == palpite["palpite_gols_casa"] and gols_fora == palpite["palpite_gols_fora"]:
             entrada["acertos_cheios"] += 1
-        elif pontos == 1:
+        elif pontos >= 1:
             entrada["acertos_vencedor"] += 1
+
+        if houve_acerto_classificacao(
+            gols_casa, gols_fora,
+            palpite["palpite_gols_casa"], palpite["palpite_gols_fora"],
+            mata_mata, vencedor_penaltis, palpite_penaltis,
+        ):
+            entrada["acertos_classificacao"] += 1
 
     return sorted(
         ranking_por_usuario.values(),
@@ -627,6 +697,7 @@ async def registrar_palpite_admin(payload: PalpiteCreate) -> dict[str, Any]:
                 "partida_id": payload.partida_id,
                 "palpite_gols_casa": payload.gols_casa,
                 "palpite_gols_fora": payload.gols_fora,
+                "palpite_penaltis": payload.penaltis,
             },
             on_conflict="usuario_id,partida_id",
         )
@@ -646,6 +717,7 @@ async def registrar_palpite_admin(payload: PalpiteCreate) -> dict[str, Any]:
         "partida_id": palpite["partida_id"],
         "palpite_gols_casa": palpite["palpite_gols_casa"],
         "palpite_gols_fora": palpite["palpite_gols_fora"],
+        "palpite_penaltis": palpite.get("palpite_penaltis"),
     }
 
 
@@ -689,11 +761,16 @@ async def atualizar_partida_manualmente(partida_id: int, payload: PartidaUpdate)
     """Atualiza placar, status e data de uma partida manualmente."""
     db = get_supabase()
     
+    if payload.vencedor_penaltis is not None and payload.vencedor_penaltis not in ("casa", "fora"):
+        raise HTTPException(status_code=400, detail="vencedor_penaltis deve ser 'casa' ou 'fora'.")
+
     update_data = {}
     if payload.gols_casa is not None: update_data["gols_casa"] = payload.gols_casa
     if payload.gols_fora is not None: update_data["gols_fora"] = payload.gols_fora
     if payload.status is not None: update_data["status"] = payload.status
     if payload.data_hora_jogo is not None: update_data["data_hora_jogo"] = payload.data_hora_jogo
+    if payload.mata_mata is not None: update_data["mata_mata"] = payload.mata_mata
+    if payload.vencedor_penaltis is not None: update_data["vencedor_penaltis"] = payload.vencedor_penaltis
 
     if not update_data:
         raise HTTPException(status_code=400, detail="Nenhum dado enviado para atualização.")
@@ -715,6 +792,8 @@ async def atualizar_partida_manualmente(partida_id: int, payload: PartidaUpdate)
         "gols_fora": partida["gols_fora"],
         "status": partida["status"],
         "palpite_expirado": not palpite_dentro_do_prazo(data_hora_jogo),
+        "mata_mata": partida.get("mata_mata", False),
+        "vencedor_penaltis": partida.get("vencedor_penaltis"),
     }
 
 @app.post("/api/admin/partidas", response_model=PartidaResponse, status_code=status.HTTP_201_CREATED)
@@ -741,7 +820,8 @@ async def criar_partida_manualmente(payload: PartidaCreate):
         "data_hora_jogo": data_hora_jogo.isoformat(),
         "status": "SCHEDULED",
         "gols_casa": None,
-        "gols_fora": None
+        "gols_fora": None,
+        "mata_mata": payload.mata_mata,
     }
 
     resultado = db.table("partidas").insert(nova_partida).execute()
@@ -763,6 +843,8 @@ async def criar_partida_manualmente(payload: PartidaCreate):
         "gols_fora": partida["gols_fora"],
         "status": partida["status"],
         "palpite_expirado": not palpite_dentro_do_prazo(parse_timestamp(partida["data_hora_jogo"])),
+        "mata_mata": partida.get("mata_mata", False),
+        "vencedor_penaltis": partida.get("vencedor_penaltis"),
     }
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

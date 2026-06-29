@@ -152,6 +152,13 @@ function atualizarSelectCampeonatos() {
 }
 
 async function carregarPartidas() {
+  // Mostra skeletons enquanto carrega
+  const matchesList = $("#matchesList");
+  matchesList.innerHTML = `
+    <div class="skeleton skeleton-match"></div>
+    <div class="skeleton skeleton-match"></div>
+    <div class="skeleton skeleton-match"></div>
+  `;
   try {
     // Busca os dados da API uma única vez e alimenta o cache local
     partidasCache = await api("/api/partidas");
@@ -178,7 +185,7 @@ function renderizarPartidas() {
     return;
   }
 
-  // 1. Filtrar partidas de acordo com a busca e o campeonato selecionado
+  // 1. Filtrar partidas
   const partidasFiltradas = partidasCache.filter(partida => {
     const correspondeTexto = partida.time_casa.toLowerCase().includes(termoBusca) ||
       partida.time_fora.toLowerCase().includes(termoBusca);
@@ -187,7 +194,9 @@ function renderizarPartidas() {
     const correspondeCampeonato = campeonatoSelecionado === "TODOS" ||
       campPartida.toLowerCase() === campeonatoSelecionado.toLowerCase();
 
-    return correspondeTexto && correspondeCampeonato;
+    const naoFinalizada = partida.status !== "FINISHED";
+
+    return correspondeTexto && correspondeCampeonato && naoFinalizada;
   });
 
   if (!partidasFiltradas.length) {
@@ -195,7 +204,7 @@ function renderizarPartidas() {
     return;
   }
 
-  // 2. Identificar partidas que acontecem HOJE
+  // 2. Identificar partidas de HOJE
   const hoje = new Date();
   const partidasDeHoje = partidasFiltradas.filter(partida => {
     const dataJogo = new Date(partida.data_hora_jogo);
@@ -204,7 +213,7 @@ function renderizarPartidas() {
       dataJogo.getFullYear() === hoje.getFullYear();
   });
 
-  // 3. Agrupar todas as partidas por dia para a listagem normal
+  // 3. Agrupar partidas por dia
   const gruposPorData = {};
   partidasFiltradas.forEach(partida => {
     const dataObjeto = new Date(partida.data_hora_jogo);
@@ -222,15 +231,21 @@ function renderizarPartidas() {
     gruposPorData[dataFormatada].push(partida);
   });
 
-  // 4. Função interna auxiliar para gerar o HTML do Card (Evita repetição de código)
+  // 4. Gerar o HTML do Card
   const gerarCardHTML = (partida) => {
     const palpiteSalvo = palpitesDoUsuario.find(p => p.partida_id === partida.id);
     const jaPalpitou = !!palpiteSalvo;
     const golsCasaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_casa : "";
     const golsForaPalpite = jaPalpitou ? palpiteSalvo.palpite_gols_fora : "";
 
+    // CORREÇÃO AQUI: Mapeia corretamente do palpite_penaltis que vem da API
+    const palpitePenaltis = jaPalpitou ? (palpiteSalvo.palpite_penaltis || "") : "";
+
     const bloqueioTotal = partida.palpite_expirado || partida.status === "FINISHED" || partida.status === "IN_PLAY";
     const inputsDesabilitados = (jaPalpitou || bloqueioTotal) ? 'disabled' : '';
+
+    // CORREÇÃO AQUI: Garante que se strings vazias existirem, não dê falso positivo
+    const empateAtual = golsCasaPalpite !== "" && golsForaPalpite !== "" && String(golsCasaPalpite) === String(golsForaPalpite);
 
     const horarioJogo = new Date(partida.data_hora_jogo).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -298,6 +313,23 @@ function renderizarPartidas() {
           </div>
         </div>
 
+        <div class="penaltis-row" style="display: ${empateAtual ? 'flex' : 'none'}; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: 8px; 
+  margin-top: 15px; 
+  padding: 10px; 
+  background: rgba(255, 255, 255, 0.03); 
+  border-radius: 8px; 
+  border: 1px dashed #30363d;">
+          <span style="font-size: 0.78rem; color: #8b949e;">Quem passa? </span>
+          <select class="select-penaltis" ${inputsDesabilitados} style="padding: 4px 8px; border-radius: 6px; background: #0b0e14; color: #fff; border: 1px solid ${jaPalpitou ? '#238636' : '#30363d'};">
+            <option value="">—</option>
+            <option value="casa" ${palpitePenaltis === 'casa' ? 'selected' : ''}>${partida.time_casa}</option>
+            <option value="fora" ${palpitePenaltis === 'fora' ? 'selected' : ''}>${partida.time_fora}</option>
+          </select>
+        </div>
+
         <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px; width: 100%;">
           ${bloqueioTotal ?
         `<button class="btn" disabled style="opacity: 0.5; padding: 6px 16px; font-size: 0.85rem; background: #21262d; color: #8b949e; border: 1px solid #30363d; border-radius: 6px; width: 100%; max-width: 180px;">
@@ -328,6 +360,9 @@ function renderizarPartidas() {
         ${partida.status === "FINISHED" ? `
           <div style="text-align: center; margin-top: 14px; color: #8b949e; font-size: 0.85rem; border-top: 1px dashed #30363d; padding-top: 8px;">
             Resultado Oficial: <strong style="color: #39ff14; font-size: 0.95rem;">${partida.gols_casa} × ${partida.gols_fora}</strong>
+            ${partida.mata_mata && partida.gols_casa === partida.gols_fora && partida.vencedor_penaltis ? `
+              <br><span style="color: #8b5cf6;">Avançou nos pênaltis: <strong>${partida.vencedor_penaltis === 'casa' ? partida.time_casa : partida.time_fora}</strong></span>
+            ` : ''}
           </div>
         ` : ''}
       </article>
@@ -350,17 +385,15 @@ function renderizarPartidas() {
     </style>
   `;
 
-  // SEÇÃO NOVISSIMA: Se houver jogos hoje, renderiza no topo em destaque
   if (partidasDeHoje.length > 0) {
     htmlFinal += `
-      <div class="date-group-header" style="margin: 1rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(57, 255, 20, 0.2);">
+      <div class="date-group-header" style="margin: 1rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(57, 255, 20, 0.25);">
           JOGOS DE HOJE
       </div>
     `;
     htmlFinal += partidasDeHoje.map(partida => gerarCardHTML(partida)).join("");
   }
 
-  // Listagem cronológica padrão abaixo
   for (const dataGrupo in gruposPorData) {
     htmlFinal += `
       <div class="date-group-header" style="margin: 2rem 0 1rem 0; padding-bottom: 8px; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
@@ -372,16 +405,47 @@ function renderizarPartidas() {
 
   listaContainer.innerHTML = htmlFinal;
 
-  // Ouvinte do botão editar mapeando os inputs perfeitamente em qualquer seção
+  // Ouvinte do botão editar
   listaContainer.querySelectorAll(".btn-editar").forEach(btn => {
     btn.addEventListener("click", () => {
       const card = btn.closest(".match-card");
       card.querySelectorAll("input").forEach(i => i.disabled = false);
+      card.querySelectorAll("select.select-penaltis").forEach(s => s.disabled = false);
       btn.style.display = "none";
       card.querySelector(".btn-salvar").style.display = "inline-block";
     });
   });
-}
+
+  // CORREÇÃO DE DINÂMICA: Mostra/esconde o seletor baseado em digitação E no estado inicial carregado
+  // Lógica para mostrar/esconder a caixinha de pênaltis quando digitar
+  listaContainer.querySelectorAll('.match-card').forEach(card => {
+    const inputCasa = card.querySelector('.gols-casa');
+    const inputFora = card.querySelector('.gols-fora');
+    const penaltisRow = card.querySelector('.penaltis-row');
+    const selectPenaltis = card.querySelector('.select-penaltis');
+
+    // Só adiciona os eventos se os elementos existirem no card
+    if (inputCasa && inputFora && penaltisRow) {
+      const verificarEmpate = () => {
+        const golsCasa = inputCasa.value.trim();
+        const golsFora = inputFora.value.trim();
+
+        // Se ambos estão preenchidos e são iguais, mostra a linha (flex)
+        if (golsCasa !== "" && golsFora !== "" && golsCasa === golsFora) {
+          penaltisRow.style.display = 'flex';
+        } else {
+          // Se não for empate, esconde e reseta o select
+          penaltisRow.style.display = 'none';
+          if (selectPenaltis) selectPenaltis.value = "";
+        }
+      };
+
+      // Escuta quando você digita nos inputs
+      inputCasa.addEventListener('input', verificarEmpate);
+      inputFora.addEventListener('input', verificarEmpate);
+    }
+  });
+} // <-- Fim da função renderizarPartidas()
 
 function renderizarCarrossel() {
   const hoje = new Date();
@@ -412,7 +476,8 @@ function renderizarCarrossel() {
       const dp = new Date(p.data_hora_jogo);
       return dp.getDate() === dia.getDate() &&
         dp.getMonth() === dia.getMonth() &&
-        dp.getFullYear() === dia.getFullYear();
+        dp.getFullYear() === dia.getFullYear() &&
+        p.status !== "FINISHED";
     });
 
     if (!partidas.length) {
@@ -443,7 +508,9 @@ function renderizarCarrossel() {
       // Seção expandida
       const golsCasa = temPalpite ? palpiteSalvo.palpite_gols_casa : "";
       const golsFora = temPalpite ? palpiteSalvo.palpite_gols_fora : "";
+      const penaltisSalvo = temPalpite ? (palpiteSalvo.palpite_penaltis || "") : "";
       const inputDisabled = bloqueado ? "disabled" : "";
+      const empateAtualCarrossel = golsCasa !== "" && golsFora !== "" && String(golsCasa) === String(golsFora);
 
       let botaoHtml = "";
       if (bloqueado) {
@@ -458,6 +525,17 @@ function renderizarCarrossel() {
       }
 
       const cardClass = isLive ? "carousel-match-card live" : temPalpite ? "carousel-match-card has-bet" : "carousel-match-card";
+
+      const penaltisRowHtml = `
+        <div class="carousel-penaltis-row" style="display:${empateAtualCarrossel ? 'flex' : 'none'}; justify-content:center; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; font-size:0.72rem; gap:4px;">
+          <span style="color:var(--text-muted); gap:4px;">Quem passa:</span>
+          <select class="carousel-select-penaltis" ${inputDisabled} style="padding:3px 6px; border-radius:6px; background:#0b0e14; color:#fff; border:1px solid var(--border); font-size:0.72rem; gap:4px;">
+            <option value="">—</option>
+            <option value="casa" ${penaltisSalvo === 'casa' ? 'selected' : ''}>${p.time_casa}</option>
+            <option value="fora" ${penaltisSalvo === 'fora' ? 'selected' : ''}>${p.time_fora}</option>
+          </select>
+        </div>
+      `;
 
       return `
     <div class="${cardClass}" data-partida-id="${p.id}">
@@ -475,6 +553,7 @@ function renderizarCarrossel() {
           <span style="color:var(--text-muted);font-weight:700;">×</span>
           <input type="number" min="0" class="carousel-score-input carousel-gols-fora" value="${golsFora}" placeholder="-" ${inputDisabled} />
         </div>
+        ${penaltisRowHtml}
         ${botaoHtml}
       </div>
     </div>
@@ -494,7 +573,7 @@ function bindCarrosselEvents() {
     // Clique no card → expande/recolhe
     card.addEventListener("click", (e) => {
       // Não recolhe se clicou num input ou botão
-      if (e.target.closest("input, button")) return;
+      if (e.target.closest("input, button, select")) return;
 
       const jaExpandido = card.classList.contains("expanded");
       // Recolhe todos
@@ -510,9 +589,24 @@ function bindCarrosselEvents() {
       btnEditar.addEventListener("click", (e) => {
         e.stopPropagation();
         card.querySelectorAll(".carousel-score-input").forEach(i => i.disabled = false);
+        const selectPenaltis = card.querySelector(".carousel-select-penaltis");
+        if (selectPenaltis) selectPenaltis.disabled = false;
         btnEditar.style.display = "none";
         card.querySelector(".carousel-btn-confirmar").style.display = "block";
       });
+    }
+
+    // Mostra/esconde o seletor de pênaltis conforme o placar digitado empata
+    const penaltisRowCarrossel = card.querySelector(".carousel-penaltis-row");
+    if (penaltisRowCarrossel) {
+      const inputCasaC = card.querySelector(".carousel-gols-casa");
+      const inputForaC = card.querySelector(".carousel-gols-fora");
+      const alternar = () => {
+        const empatado = inputCasaC.value !== "" && inputForaC.value !== "" && inputCasaC.value === inputForaC.value;
+        penaltisRowCarrossel.style.display = empatado ? "flex" : "none";
+      };
+      inputCasaC?.addEventListener("input", alternar);
+      inputForaC?.addEventListener("input", alternar);
     }
 
     // Botão "Salvar/Confirmar" → chama a API
@@ -525,9 +619,16 @@ function bindCarrosselEvents() {
         const partidaId = Number(btnConfirmar.dataset.id);
         const golsCasa = card.querySelector(".carousel-gols-casa").value;
         const golsFora = card.querySelector(".carousel-gols-fora").value;
+        const selectPenaltis = card.querySelector(".carousel-select-penaltis");
+        const penaltisVal = selectPenaltis ? (selectPenaltis.value || null) : null;
 
         if (golsCasa === "" || golsFora === "") {
           showToast("Preencha os dois placares.", "error");
+          return;
+        }
+
+        if (selectPenaltis && golsCasa === golsFora && !penaltisVal) {
+          showToast("Empate em mata-mata! Escolha quem avança nos pênaltis.", "error");
           return;
         }
 
@@ -541,7 +642,8 @@ function bindCarrosselEvents() {
               usuario_id: usuarioAtual.id,
               partida_id: partidaId,
               gols_casa: Number(golsCasa),
-              gols_fora: Number(golsFora)
+              gols_fora: Number(golsFora),
+              penaltis: penaltisVal
             })
           });
 
@@ -591,49 +693,67 @@ function atualizarDots() {
 }
 
 async function salvarPalpiteFront(partidaId, botao) {
-  // 1. Valida se o usuário está logado
-  if (!exigirLogin()) return;
+  if (!usuarioAtual) {
+    showToast("Você precisa selecionar um participante para dar palpites.", "error");
+    abrirModalUsuarios();
+    return;
+  }
 
-  // 2. Encontra o card e captura os valores dos inputs de placar
+  // Encontra o card da partida específico
   const card = botao.closest(".match-card");
-  const golsCasaVal = card.querySelector(".gols-casa").value;
-  const golsForaVal = card.querySelector(".gols-fora").value;
+  const inputCasa = card.querySelector(".gols-casa");
+  const inputFora = card.querySelector(".gols-fora");
 
-  if (golsCasaVal === "" || golsForaVal === "") {
+  const golsCasa = inputCasa.value.trim();
+  const golsFora = inputFora.value.trim();
+
+  if (golsCasa === "" || golsFora === "") {
     showToast("Por favor, preencha os dois placares antes de salvar.", "error");
     return;
   }
 
-  // 📦 O PAYLOAD DEVE CASAR COM O SCHEMA DO FASTAPI (gols_casa e gols_fora)
-  const payload = {
-    usuario_id: usuarioAtual.id,
-    partida_id: partidaId,
-    gols_casa: Number(golsCasaVal),
-    gols_fora: Number(golsForaVal)
-  };
+  // CORREÇÃO: Captura o valor do select de quem se classifica nos pênaltis
+  let penaltis = null;
+  const selectPenaltis = card.querySelector(".select-penaltis");
+
+  if (selectPenaltis && golsCasa === golsFora) {
+    penaltis = selectPenaltis.value;
+    if (!penaltis) {
+      showToast("Partida de mata-mata com empate! Selecione quem se classifica.", "error");
+      return;
+    }
+  }
 
   try {
     botao.disabled = true;
-    const textoOriginal = botao.textContent;
-    botao.textContent = "...";
+    botao.textContent = "Salvando...";
 
-    // 🌐 Como o seu Python usa .upsert, disparar POST atualiza automaticamente se já existir!
+    const payload = {
+      usuario_id: usuarioAtual.id,
+      partida_id: parseInt(partidaId),
+      gols_casa: parseInt(golsCasa),
+      gols_fora: parseInt(golsFora),
+      penaltis: penaltis // Envia "casa" ou "fora" para a API do backend
+    };
+
     await api("/api/palpites", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
-    showToast("Palpite registrado com sucesso!");
+    showToast("Palpite salvo com sucesso!");
 
-    // 4. Recarrega as partidas para atualizar o cache local e re-bloquear os inputs
-    await carregarPartidas();
+    // Atualiza a memória local e renderiza a tela com o novo estado travado/salvo
+    await carregarPalpitesDoUsuario();
+    renderizarPartidas();
+    if (typeof atualizarCarrosselPartidas === "function") {
+      atualizarCarrosselPartidas();
+    }
 
   } catch (err) {
     showToast(err.message, "error");
     botao.disabled = false;
-    // Descobre se era uma edição ou inserção nova para restaurar o texto do botão
-    const jaPalpitou = palpitesDoUsuario.some(p => p.partida_id === partidaId);
-    botao.textContent = jaPalpitou ? "Atualizar" : "Salvar";
+    botao.textContent = "Salvar Palpite";
   }
 }
 
@@ -643,6 +763,12 @@ async function carregarMeusPalpitesExclusivos() {
     lista.innerHTML = '<div class="empty">Selecione ou cadastre um participante para ver os palpites salvos.</div>';
     return;
   }
+
+  // Skeleton enquanto carrega
+  lista.innerHTML = `
+    <div class="skeleton skeleton-match"></div>
+    <div class="skeleton skeleton-match"></div>
+  `;
 
   try {
     const partidas = await api("/api/partidas");
@@ -658,6 +784,27 @@ async function carregarMeusPalpitesExclusivos() {
     lista.innerHTML = partidasPalpitadas.map((p) => {
       const st = statusPartida(p);
       const palpiteSalvo = palpitesDoUsuario.find(pt => pt.partida_id === p.id);
+
+      const teveEmpatePalpitado = palpiteSalvo.palpite_gols_casa === palpiteSalvo.palpite_gols_fora;
+      const nomeTimePalpitePenaltis = palpiteSalvo.palpite_penaltis === 'casa' ? p.time_casa
+        : palpiteSalvo.palpite_penaltis === 'fora' ? p.time_fora : null;
+
+      const jogoEmpatadoReal = p.status === "FINISHED" && p.gols_casa === p.gols_fora;
+      const nomeTimeVencedorPenaltisReal = p.vencedor_penaltis === 'casa' ? p.time_casa
+        : p.vencedor_penaltis === 'fora' ? p.time_fora : null;
+
+      let blocoClassificacao = '';
+      if (teveEmpatePalpitado && nomeTimePalpitePenaltis) {
+        const acertou = p.status === "FINISHED" && jogoEmpatadoReal && palpiteSalvo.palpite_penaltis === p.vencedor_penaltis;
+        const errou = p.status === "FINISHED" && jogoEmpatadoReal && nomeTimeVencedorPenaltisReal && !acertou;
+        blocoClassificacao = `
+            <div>
+              <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-weight:600; text-transform:uppercase;">Sua aposta na classificação</span>
+              <div style="font-size:1rem; font-weight:700; color:${acertou ? 'var(--accent)' : errou ? 'var(--danger)' : 'var(--text)'};">
+                ${nomeTimePalpitePenaltis} nos pênaltis ${acertou ? '✓' : errou ? '✗' : ''}
+              </div>
+            </div>`;
+      }
 
       return `
         <article class="match-card">
@@ -676,8 +823,9 @@ async function carregarMeusPalpitesExclusivos() {
             ${p.status === "FINISHED" ? `
             <div>
               <span style="font-size:0.75rem; color:var(--text-muted); display:block; font-weight:600; text-transform:uppercase;">Resultado Oficial</span>
-              <div style="font-size:1.4rem; font-weight:800; color:var(--purple); text-shadow:var(--glow-purple);">${p.gols_casa} × ${p.gols_fora}</div>
+              <div style="font-size:1.4rem; font-weight:800; color:var(--purple); text-shadow:var(--glow-purple);">${p.gols_casa} × ${p.gols_fora}${jogoEmpatadoReal && nomeTimeVencedorPenaltisReal ? ` <span style="font-size:0.8rem; color:#8b5cf6;">(${nomeTimeVencedorPenaltisReal} nos pênaltis)</span>` : ''}</div>
             </div>` : ''}
+            ${blocoClassificacao}
           </div>
         </article>
       `;
@@ -690,24 +838,33 @@ async function carregarMeusPalpitesExclusivos() {
 
 async function carregarRanking() {
   const tbody = $("#rankingBody");
+  // Skeleton enquanto carrega
+  tbody.innerHTML = `
+    <tr><td colspan="6"><div class="skeleton" style="height:36px;border-radius:6px;margin:4px 0;"></div></td></tr>
+    <tr><td colspan="6"><div class="skeleton" style="height:36px;border-radius:6px;margin:4px 0;"></div></td></tr>
+    <tr><td colspan="6"><div class="skeleton" style="height:36px;border-radius:6px;margin:4px 0;"></div></td></tr>
+  `;
   try {
     const ranking = await api("/api/ranking");
     if (!ranking.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum participante ainda.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum participante ainda.</td></tr>';
       return;
     }
 
+    const medalhas = ["1°", "2°", "3°"];
+
     tbody.innerHTML = ranking.map((r, i) => `
       <tr class="${i === 0 && r.pontos_totais > 0 ? "leader" : ""}">
-        <td>${i + 1}º</td>
+        <td>${medalhas[i] ? `<span class="rank-medal">${medalhas[i]}</span>` : `${i + 1}º`}</td>
         <td>${r.nome}</td>
         <td class="pts">${r.pontos_totais}</td>
         <td>${r.acertos_cheios}</td>
         <td>${r.acertos_vencedor}</td>
+        <td>${r.acertos_classificacao || 0}</td>
       </tr>
     `).join("");
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">Erro: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">Erro: ${err.message}</td></tr>`;
   }
 }
 
@@ -722,6 +879,7 @@ async function carregarPainelAdmin() {
     }
 
     lista.innerHTML = partidas.map((p) => {
+      const empatadoAtual = p.gols_casa !== null && p.gols_fora !== null && p.gols_casa === p.gols_fora;
       return `
         <article class="match-card" data-admin-id="${p.id}">
           <div class="match-header" style="margin-bottom: 0.5rem;">
@@ -745,11 +903,43 @@ async function carregarPainelAdmin() {
                 <option value="FINISHED" ${p.status === 'FINISHED' ? 'selected' : ''}>Finalizado</option>
               </select>
             </div>
+            <div class="field" style="flex: 1.4; min-width: 130px;">
+              <label style="font-size: 0.75rem;">Mata-mata?</label>
+              <label style="display:flex; align-items:center; gap:6px; height: 38px; cursor:pointer;">
+                <input type="checkbox" class="admin-mata-mata" ${p.mata_mata ? 'checked' : ''} style="width:18px; height:18px;">
+                <span style="font-size:0.8rem; color: var(--text-muted);">Eliminatória</span>
+              </label>
+            </div>
+            <div class="field admin-penaltis-field" style="flex: 2; min-width: 160px; display:${p.mata_mata && empatadoAtual ? 'block' : 'none'};">
+              <label style="font-size: 0.75rem;">Quem venceu nos pênaltis?</label>
+              <select class="admin-penaltis" style="padding: 0.4rem; background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; height: auto;">
+                <option value="">—</option>
+                <option value="casa" ${p.vencedor_penaltis === 'casa' ? 'selected' : ''}>${p.time_casa}</option>
+                <option value="fora" ${p.vencedor_penaltis === 'fora' ? 'selected' : ''}>${p.time_fora}</option>
+              </select>
+            </div>
             <button class="btn btn-primary btn-admin-salvar" style="background: var(--danger); box-shadow: none; align-self: flex-end; padding: 0.5rem 1rem;">Salvar</button>
           </div>
         </article>
       `;
     }).join("");
+
+    // Mostra/esconde o campo "vencedor nos pênaltis" conforme o checkbox e o placar empatado
+    lista.querySelectorAll(".match-card").forEach((card) => {
+      const checkboxMataMata = card.querySelector(".admin-mata-mata");
+      const campoPenaltis = card.querySelector(".admin-penaltis-field");
+      const inputGolsCasa = card.querySelector(".admin-gols-casa");
+      const inputGolsFora = card.querySelector(".admin-gols-fora");
+
+      const atualizarVisibilidadePenaltis = () => {
+        const empatado = inputGolsCasa.value !== "" && inputGolsFora.value !== "" && inputGolsCasa.value === inputGolsFora.value;
+        campoPenaltis.style.display = (checkboxMataMata.checked && empatado) ? "block" : "none";
+      };
+
+      checkboxMataMata.addEventListener("change", atualizarVisibilidadePenaltis);
+      inputGolsCasa.addEventListener("input", atualizarVisibilidadePenaltis);
+      inputGolsFora.addEventListener("input", atualizarVisibilidadePenaltis);
+    });
 
     lista.querySelectorAll(".btn-admin-salvar").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -758,10 +948,18 @@ async function carregarPainelAdmin() {
         const golsCasaVal = card.querySelector(".admin-gols-casa").value;
         const golsForaVal = card.querySelector(".admin-gols-fora").value;
         const status = card.querySelector(".admin-status").value;
+        const mataMata = card.querySelector(".admin-mata-mata").checked;
+        const vencedorPenaltis = card.querySelector(".admin-penaltis").value || null;
 
-        const payload = { status: status };
+        const payload = { status: status, mata_mata: mataMata };
         payload.gols_casa = golsCasaVal !== "" ? Number(golsCasaVal) : null;
         payload.gols_fora = golsForaVal !== "" ? Number(golsForaVal) : null;
+        if (vencedorPenaltis) payload.vencedor_penaltis = vencedorPenaltis;
+
+        if (mataMata && payload.gols_casa !== null && payload.gols_fora !== null && payload.gols_casa === payload.gols_fora && !vencedorPenaltis) {
+          showToast("Placar empatado em mata-mata: selecione quem venceu nos pênaltis.", "error");
+          return;
+        }
 
         try {
           btn.textContent = "...";
@@ -921,6 +1119,7 @@ $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
   const timeCasa = $("#adminNewTimeCasa").value.trim();
   const timeFora = $("#adminNewTimeFora").value.trim();
   const dataHoraRaw = $("#adminNewDataHora").value;
+  const mataMata = $("#adminNewMataMata")?.checked || false;
 
   if (!timeCasa || !timeFora || !dataHoraRaw) {
     showToast("Preencha todos os campos para criar o jogo.", "error");
@@ -939,7 +1138,8 @@ $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
       body: JSON.stringify({
         time_casa: timeCasa,
         time_fora: timeFora,
-        data_hora_jogo: dataHoraIso
+        data_hora_jogo: dataHoraIso,
+        mata_mata: mataMata
       })
     });
 
@@ -947,6 +1147,7 @@ $("#btnAdminCriarJogo")?.addEventListener("click", async () => {
     $("#adminNewTimeCasa").value = "";
     $("#adminNewTimeFora").value = "";
     $("#adminNewDataHora").value = "";
+    if ($("#adminNewMataMata")) $("#adminNewMataMata").checked = false;
     await carregarPainelAdmin();
 
   } catch (err) {
@@ -963,5 +1164,13 @@ async function init() {
   await carregarUsuarios();
   // Carrega partidas em background sem bloquear o init se der erro
   carregarPartidas().catch(err => console.warn("Carrossel: erro ao pré-carregar partidas", err));
+
+  // CTA do guest state — leva à aba de participante ao clicar
+  const btnIrLogin = document.getElementById("btnIrParaLogin");
+  if (btnIrLogin) {
+    btnIrLogin.addEventListener("click", () => {
+      document.querySelector('[data-tab="usuario"]').click();
+    });
+  }
 }
 init();

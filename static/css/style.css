@@ -11,13 +11,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Ajuste específico para os cards de partida */
-.match-card {
-  width: 100%;
-  max-width: 750px; /* Aumentado de 600px para 750px para acompanhar os filtros */
-  margin: 0 auto 1.25rem auto;
-  padding: 1.5rem; /* Mais espaço interno para respirar */
-}
+/* Ajuste específico para os cards de partida - centralizado na seção .match-card abaixo */
 
 :root {
   --bg: #0b0e14;
@@ -69,24 +63,38 @@ body {
 header {
   text-align: center;
   margin-bottom: 2rem;
-  padding: 1.5rem 0;
+  padding: 1.5rem 0 1rem;
+}
+
+.header-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.4rem;
+  filter: drop-shadow(0 0 16px rgba(157, 78, 223, 0.5));
+  animation: floatIcon 3s ease-in-out infinite;
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
 header h1 {
-  font-size: 2rem;
+  font-size: 2.8rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   background: linear-gradient(135deg, var(--purple), #c77dff 40%, var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter: drop-shadow(0 0 18px rgba(157, 78, 223, 0.35));
+  line-height: 1.1;
 }
 
-header p {
+.header-subtitle {
   color: var(--text-muted);
-  margin-top: 0.35rem;
-  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
 }
 
 .user-bar {
@@ -136,8 +144,11 @@ header p {
   border-bottom: 1px solid var(--border);
   padding-bottom: 0;
   overflow-x: auto;
-  scrollbar-width: none; 
-  -ms-overflow-style: none; 
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Fade nas bordas para indicar scroll em mobile */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
 }
 
 .tabs::-webkit-scrollbar {
@@ -190,6 +201,17 @@ header p {
   color: var(--purple);
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+.card h2 + .form-row {
+  margin-bottom: 0;
+}
+
+/* Segundo bloco dentro do mesmo card */
+.card .form-row + h2 {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
 }
 
 .form-row {
@@ -290,13 +312,116 @@ input:disabled {
   box-shadow: var(--glow-purple);
 }
 
-.hint {
-  font-size: 0.85rem;
+/* ==========================================
+   OR DIVIDER — separador entre login e cadastro
+   ========================================== */
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
   color: var(--text-muted);
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.or-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.or-divider span {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Segundo h2 dentro do mesmo card recebe respiro extra */
+.card h2 + .form-row,
+.card .or-divider + h2 {
+  margin-top: 0;
+}
+
+/* ==========================================
+   BTN INLINE LINK — CTA dentro do texto
+   ========================================== */
+
+.btn-inline-link {
+  background: none;
+  border: none;
+  color: var(--purple);
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+
+.btn-inline-link:hover {
+  color: #c77dff;
+}
+
+/* ==========================================
+   BTN ICON REFRESH — botão de atualizar discreto
+   ========================================== */
+
+.btn-icon-refresh {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s, transform 0.3s;
+  line-height: 1;
+}
+
+.btn-icon-refresh:hover {
+  border-color: var(--purple-dim);
+  color: var(--purple);
+  transform: rotate(180deg);
+}
+
+/* ==========================================
+   SKELETON LOADER
+   ========================================== */
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-card) 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.skeleton-match {
+  height: 110px;
+  width: 100%;
+}
+
+/* ==========================================
+   MEDALHAS NO RANKING
+   ========================================== */
+
+.rank-medal {
+  font-size: 1.1rem;
 }
 
 .matches {
@@ -567,8 +692,12 @@ tr.leader td:nth-child(2) {
 }
 
 @media (max-width: 600px) {
+  .header-icon {
+    font-size: 2rem;
+  }
+
   header h1 {
-    font-size: 1.5rem;
+    font-size: 2rem;
   }
 
   .match-teams {
@@ -771,14 +900,19 @@ tr.leader td:nth-child(2) {
 
 /* Card compacto para o carrossel */
 .carousel-match-card {
-  flex: 0 0 200px;
+  flex: 0 0 190px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1rem 0.85rem;
   text-align: center;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  cursor: default;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Altura mínima garante que todos os cards tenham o mesmo tamanho no estado recolhido */
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .carousel-match-card:hover {
@@ -838,17 +972,18 @@ tr.leader td:nth-child(2) {
   min-height: 120px; /* garante que o container não colapsa */
 }
 
-/* Expansão inline do card do carrossel */
-.carousel-match-card {
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
+/* Expansão inline do card do carrossel — oculta por padrão */
 .carousel-match-card .carousel-expand {
-  display: block;
+  display: none;
+  width: 100%;
   margin-top: 0.85rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
+}
+
+/* Só aparece quando o card está expandido */
+.carousel-match-card.expanded .carousel-expand {
+  display: block;
 }
 
 .carousel-expand-inputs {
@@ -905,7 +1040,30 @@ tr.leader td:nth-child(2) {
   cursor: not-allowed;
 }
 
+/* Adicione isso ao seu style.css */
+.select-penaltis {
+  width: 100%;
+  max-width: 280px;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Adicione isso ao final do seu style.css */
+
+/* Ajusta o espaçamento entre elementos dentro do container de edição de partidas */
+#adminMatchesList .match-card .actions, 
+#adminMatchesList .match-card .controls {
+    display: flex;
+    gap: 12px; /* Ajuste este valor conforme o espaçamento desejado */
+    align-items: center;
 }
